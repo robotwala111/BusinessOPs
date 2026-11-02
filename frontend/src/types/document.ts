@@ -1,0 +1,4 @@
+export const DOCUMENT_CATEGORIES = ["requirement","proposal","quotation","contract","purchase_order","delivery_document","acceptance_document","invoice","receipt","payment_evidence","technical_document","general_attachment"] as const;
+export type DocumentCategory = (typeof DOCUMENT_CATEGORIES)[number];
+export type BusinessDocument = { id:string; client_id:string|null; project_id:string|null; entity_type:string|null; entity_id:string|null; category:DocumentCategory; title:string; description:string|null; version_number:number; parent_document_id:string|null; storage_bucket:string; storage_path:string; file_name:string; mime_type:string; file_size:number; document_date:string|null; expiry_date:string|null; archived_at:string|null; archived_by:string|null; created_by:string|null; created_at:string };
+

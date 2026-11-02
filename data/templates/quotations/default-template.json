@@ -1,0 +1,68 @@
+{
+  "id": "business-quotation-default",
+  "name": "Default Business Quotation",
+  "version": "1.0.0",
+  "page": {
+    "format": "A4",
+    "orientation": "portrait",
+    "margin": 34
+  },
+  "branding": {
+    "companyName": "{{company_name}}",
+    "tagline": "{{company_tagline}}",
+    "logoPath": "{{company_logo_url}}",
+    "primaryColor": "#f4b000",
+    "secondaryColor": "#111111"
+  },
+  "sections": [
+    "header",
+    "from_to",
+    "quotation_details",
+    "introduction",
+    "project_overview",
+    "scope_modules",
+    "technical_specification",
+    "budget_summary",
+    "deliverables",
+    "payment_milestones",
+    "terms_conditions",
+    "acceptance",
+    "footer"
+  ],
+  "dynamicFields": {
+    "quotation": [
+      "quotation_number",
+      "title",
+      "quotation_date",
+      "valid_until",
+      "subtotal",
+      "discount_rate",
+      "discount_amount",
+      "tax_rate",
+      "tax_amount",
+      "total_amount",
+      "project_overview",
+      "scope_of_work",
+      "tech_stack",
+      "project_timeline",
+      "payment_terms",
+      "support_and_maintenance",
+      "notes",
+      "terms_and_conditions"
+    ],
+    "client": [
+      "company_name",
+      "contact_person",
+      "email",
+      "phone",
+      "address",
+      "gst_number"
+    ],
+    "items": [
+      "description",
+      "quantity",
+      "unit_price",
+      "line_total"
+    ]
+  }
+}

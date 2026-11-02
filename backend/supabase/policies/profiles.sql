@@ -1,0 +1,2 @@
+-- Profiles policies are defined in the initial migration.
+-- Keep future module-specific RLS policy drafts in this folder.

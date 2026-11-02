@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Business Quotation Template</title>
+    <link rel="stylesheet" href="./quotation-styles.css" />
+  </head>
+  <body>
+    <main class="quotation">
+      <header class="quotation-header">
+        <section>
+          <h1>{{company_name}}</h1>
+          <p>{{company_tagline}}</p>
+        </section>
+        <section class="quotation-number">
+          <span>Quotation</span>
+          <strong>{{quotation_number}}</strong>
+        </section>
+      </header>
+
+      <section class="quotation-title">
+        <div>
+          <h2>{{quotation_title}}</h2>
+          <p>Prepared for {{client_company_name}}</p>
+        </div>
+        <div>
+          <p>Date: {{quotation_date}}</p>
+          <p>Valid until: {{valid_until}}</p>
+        </div>
+      </section>
+
+      <section class="client-box">
+        <h3>Client Details</h3>
+        <p>{{client_contact_person}}</p>
+        <p>{{client_email}} | {{client_phone}}</p>
+        <p>{{client_address}}</p>
+      </section>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Qty</th>
+            <th>Unit Price</th>
+            <th>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>{{item_description}}</td>
+            <td>{{item_quantity}}</td>
+            <td>{{item_unit_price}}</td>
+            <td>{{item_line_total}}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <section class="summary">
+        <p>Subtotal: {{subtotal}}</p>
+        <p>Discount: {{discount_amount}}</p>
+        <p>Tax: {{tax_amount}}</p>
+        <strong>Total: {{total_amount}}</strong>
+      </section>
+
+      <section class="terms">
+        <h3>Payment Terms</h3>
+        <p>{{payment_terms}}</p>
+        <h3>Notes</h3>
+        <p>{{notes}}</p>
+        <h3>Terms and Conditions</h3>
+        <p>{{terms_and_conditions}}</p>
+      </section>
+
+      <footer>{{company_name}} | {{company_email}}</footer>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,3 @@
+export function quotationShouldExpire(input:{status:string;valid_until:string|null},today=new Date().toISOString().slice(0,10)){return input.status==="sent"&&Boolean(input.valid_until&&input.valid_until<today);}
+const allowedDocumentTypes=new Set(["application/pdf","image/png","image/jpeg","text/plain","application/vnd.openxmlformats-officedocument.wordprocessingml.document","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"]);
+export function validateAttachment(input:{size:number;type:string}){if(!input.size||input.size>20*1024*1024)throw new Error("File must be between 1 byte and 20 MB.");if(!allowedDocumentTypes.has(input.type))throw new Error("Unsupported file type.");}
