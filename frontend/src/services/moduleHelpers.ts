@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
+import { isDemoMode, isSupabaseConfigured, supabase } from "@/lib/supabase/client";
 
 export function requireSupabase() {
   if (!supabase) {
@@ -17,6 +17,10 @@ export function toNumber(value?: number | null) {
 }
 
 export function readDemoRecords<T>(key: string): T[] {
+  if (!isDemoMode()) {
+    throw new Error("Demo persistence is disabled. Configure Supabase to use the application.");
+  }
+
   if (typeof window === "undefined") {
     return [];
   }
@@ -26,6 +30,10 @@ export function readDemoRecords<T>(key: string): T[] {
 }
 
 export function writeDemoRecords<T>(key: string, records: T[]) {
+  if (!isDemoMode()) {
+    throw new Error("Demo persistence is disabled. Configure Supabase to use the application.");
+  }
+
   window.localStorage.setItem(key, JSON.stringify(records));
 }
 
@@ -38,7 +46,7 @@ export async function generateNumber(
 ) {
   const yearPrefix = `${prefix}-${new Date().getFullYear()}-`;
 
-  if (!isSupabaseConfigured) {
+  if (isDemoMode()) {
     const latest = readDemoRecords<Record<string, string>>(demoKey)
       .map((record) => record[column])
       .filter((number) => number?.startsWith(yearPrefix))

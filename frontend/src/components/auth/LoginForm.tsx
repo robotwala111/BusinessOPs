@@ -6,7 +6,7 @@ import { FormEvent, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
 export function LoginForm() {
-  const { login, isConfigured } = useAuth();
+  const { login, isConfigured, isDemoMode } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
@@ -33,9 +33,14 @@ export function LoginForm() {
 
   return (
     <form className="auth-form" onSubmit={handleSubmit}>
-      {!isConfigured ? (
+      {isDemoMode ? (
         <div className="form-note">
           Demo mode: use demo-admin@example.local and password Admin@123.
+        </div>
+      ) : null}
+      {!isConfigured && !isDemoMode ? (
+        <div className="form-error">
+          Supabase is not configured. Authentication is unavailable until it is configured.
         </div>
       ) : null}
       {errorMessage ? <div className="form-error">{errorMessage}</div> : null}
@@ -65,7 +70,7 @@ export function LoginForm() {
       </button>
       <div className="auth-links">
         <Link href="/forgot-password">Forgot password?</Link>
-        <Link href="/register">Initial admin setup</Link>
+        <Link href="/register">Create account</Link>
       </div>
     </form>
   );

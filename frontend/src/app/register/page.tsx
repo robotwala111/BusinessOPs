@@ -8,10 +8,10 @@ export default function RegisterPage() {
       <AuthRedirect>
         <main className="page-shell auth-shell">
           <section className="content-panel auth-panel">
-            <p className="eyebrow">Initial setup</p>
-            <h1>Create admin account</h1>
+            <p className="eyebrow">Account access</p>
+            <h1>Create account</h1>
             <p className="muted">
-              Use this page for the first administrator account.
+              New accounts are assigned the staff role. Administrators manage privileged access.
             </p>
             <RegisterForm />
           </section>

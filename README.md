@@ -47,7 +47,7 @@ docs/
 Implemented:
 
 - Email/password login
-- Initial admin registration page
+- Account registration page (new Supabase accounts are staff, not admins)
 - Forgot password starter page
 - Supabase Auth provider and `useAuth` hook
 - Protected route wrapper for internal app pages
@@ -221,7 +221,7 @@ Supabase and Vercel configuration are intentionally deferred for now. If `fronte
 Use:
 
 ```text
-Email: admin@amirotech.local
+Email: demo-admin@example.local
 Password: Admin@123
 ```
 
@@ -294,6 +294,11 @@ Run migrations in order:
 202605100015_create_leads.sql
 202609020016_create_workflow_foundations.sql
 202609020017_create_commercial_lifecycle.sql
+202609020018_create_operational_workflows.sql
+202609030019_create_brand_asset_storage.sql
+202609030020_create_atomic_financial_note_application.sql
+202609030021_create_payment_evidence_storage.sql
+202611020022_harden_profile_roles.sql
 ```
 
 The profiles migration creates `public.profiles`, enables row level security, creates own-profile read/update/insert policies, and adds a trigger to create a profile record when a Supabase Auth user is created.
@@ -309,6 +314,10 @@ The quotation sections migration adds optional content blocks for project overvi
 The remaining migrations add contracts, invoices, payments, expenses, maintenance contracts, support tickets, and private Supabase Storage buckets for signed contracts and receipts. RLS is enabled for every business table: authenticated users can read/insert/update and only admin users can delete.
 
 The enterprise migrations add `projects`, relationship fields from major business records to projects, enterprise metadata fields, indexes, and configuration/master tables for plug-and-play standardization.
+
+Migration `022` resets existing profiles to `staff` because earlier signups inherited the admin default, assigns new profiles the `staff` role, prevents users from changing their own role, and allows admins to manage profiles. After applying it, promote trusted administrators through a Supabase SQL session. Disable public signups in Supabase Auth and provision other users by invitation; do not grant admin through client metadata or browser requests.
+
+The AI Business Copilot is disabled by default. Apply migrations `022` and `023`, verify authentication/RLS in a disposable Supabase project, and configure the server-only AI and Supabase service-role settings before setting `AI_COPILOT_ENABLED=true`. Business-data queries use the signed-in user's Supabase token; the service-role key is limited to budget reservation, usage logging, and saving assistant replies. Never add it to a `NEXT_PUBLIC_*` variable.
 
 ## Client Module Testing Checklist
 

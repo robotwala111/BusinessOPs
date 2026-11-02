@@ -5,7 +5,7 @@ import { FormEvent, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
 export function ForgotPasswordForm() {
-  const { sendPasswordReset, isConfigured } = useAuth();
+  const { sendPasswordReset, isConfigured, isDemoMode } = useAuth();
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -33,9 +33,14 @@ export function ForgotPasswordForm() {
 
   return (
     <form className="auth-form" onSubmit={handleSubmit}>
-      {!isConfigured ? (
+      {isDemoMode ? (
         <div className="form-note">
           Demo mode: password reset will be enabled when Supabase is connected.
+        </div>
+      ) : null}
+      {!isConfigured && !isDemoMode ? (
+        <div className="form-error">
+          Supabase is not configured. Password reset is unavailable until it is configured.
         </div>
       ) : null}
       {errorMessage ? <div className="form-error">{errorMessage}</div> : null}

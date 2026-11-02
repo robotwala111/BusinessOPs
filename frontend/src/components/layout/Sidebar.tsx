@@ -9,6 +9,7 @@ import type { EffectiveCompanySettings } from "@/types/settings";
 
 const navigationItems = [
   { label: "Dashboard", href: "/dashboard" },
+  { label: "AI Copilot", href: "/copilot" },
   { label: "Clients", href: "/clients" },
   { label: "Leads", href: "/leads" },
   { label: "Contacts", href: "/contacts" },

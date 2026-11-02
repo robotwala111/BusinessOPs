@@ -41,8 +41,18 @@ Apply the Supabase migrations in `backend/supabase/migrations/` before using the
 202605100015_create_leads.sql
 202609020016_create_workflow_foundations.sql
 202609020017_create_commercial_lifecycle.sql
+202609020018_create_operational_workflows.sql
+202609030019_create_brand_asset_storage.sql
+202609030020_create_atomic_financial_note_application.sql
+202609030021_create_payment_evidence_storage.sql
+202611020022_harden_profile_roles.sql
+202611020023_create_ai_copilot_storage.sql
 ```
 
 Supabase is responsible for authentication, database storage, RLS policies, and future Edge Functions.
 
 The storage migration creates private buckets for signed contracts and expense receipts. Confirm the bucket policies are present before testing production file uploads.
+
+Migration `022` resets existing profiles to `staff` because earlier signups inherited the admin default. After applying it, promote trusted administrators through a trusted Supabase SQL session. Disable public signups in Supabase Auth before production and provision staff through trusted invitations. New profiles receive the `staff` role; do not expose service-role credentials to the frontend.
+
+The AI Copilot remains disabled until `AI_COPILOT_ENABLED=true`. Before enabling it, apply and validate migrations `022`-`023`, test user-specific conversation RLS and the budget RPCs in a disposable Supabase project, and set server-only `SUPABASE_SERVICE_ROLE_KEY`, provider credentials/model, and per-token cost rates. The service-role key is used only by the server API for usage budgets/logs and assistant replies; all business-data reads use the authenticated user's token. Do not expose AI or service-role credentials as `NEXT_PUBLIC_*`.

@@ -10,7 +10,11 @@ import {
   useState
 } from "react";
 import { authService } from "@/services/authService";
-import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
+import {
+  isDemoMode as demoModeEnabled,
+  isSupabaseConfigured,
+  supabase
+} from "@/lib/supabase/client";
 import type { Profile } from "@/types/auth";
 
 const DEMO_AUTH_STORAGE_KEY = "business-ops-demo-auth";
@@ -23,6 +27,8 @@ type AuthContextValue = {
   profile: Profile | null;
   isLoading: boolean;
   isConfigured: boolean;
+  isDemoMode: boolean;
+  isRegistrationEnabled: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, fullName: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -67,7 +73,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   useEffect(() => {
-    if (!supabase) {
+    if (demoModeEnabled()) {
       const hasDemoSession = window.localStorage.getItem(DEMO_AUTH_STORAGE_KEY) === "true";
 
       if (hasDemoSession) {
@@ -75,6 +81,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setProfile(demoProfile);
       }
 
+      setIsLoading(false);
+      return;
+    }
+
+    if (!supabase) {
       setIsLoading(false);
       return;
     }
@@ -120,8 +131,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       profile,
       isLoading,
       isConfigured: isSupabaseConfigured,
+      isDemoMode: demoModeEnabled(),
+      isRegistrationEnabled: process.env.NODE_ENV !== "production",
       async login(email, password) {
-        if (!supabase) {
+        if (demoModeEnabled()) {
           if (email !== DEMO_EMAIL || password !== DEMO_PASSWORD) {
             throw new Error("Use demo-admin@example.local with password Admin@123.");
           }
@@ -139,7 +152,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       },
       async register(email, password, fullName) {
-        if (!supabase) {
+        if (process.env.NODE_ENV === "production") {
+          throw new Error("Self-service registration is disabled. Ask an administrator for an account.");
+        }
+
+        if (demoModeEnabled()) {
           window.localStorage.setItem(DEMO_AUTH_STORAGE_KEY, "true");
           setSession({
             user: {
@@ -162,7 +179,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       },
       async logout() {
-        if (!supabase) {
+        if (demoModeEnabled()) {
           window.localStorage.removeItem(DEMO_AUTH_STORAGE_KEY);
           setSession(null);
           setProfile(null);
@@ -176,7 +193,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       },
       async sendPasswordReset(email) {
-        if (!supabase) {
+        if (demoModeEnabled()) {
           return;
         }
 

@@ -24,7 +24,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 When these values are blank, the app uses the local demo login:
 
 ```text
-Email: admin@amirotech.local
+Email: demo-admin@example.local
 Password: Admin@123
 ```
 
@@ -50,10 +50,24 @@ Apply migrations from `backend/supabase/migrations/` in order:
 202605100015_create_leads.sql
 202609020016_create_workflow_foundations.sql
 202609020017_create_commercial_lifecycle.sql
+202609020018_create_operational_workflows.sql
+202609030019_create_brand_asset_storage.sql
+202609030020_create_atomic_financial_note_application.sql
+202609030021_create_payment_evidence_storage.sql
+202611020022_harden_profile_roles.sql
+202611020023_create_ai_copilot_storage.sql
 ```
 
 Each table has RLS enabled. Client and quotation deletes are restricted to users whose profile role is `admin`.
 The same admin-only delete pattern is used for contracts, invoices, payments, expenses, maintenance contracts, and support tickets.
+
+Migration `022` resets existing profiles to `staff` because earlier signups inherited the admin default, defaults new profiles to `staff`, prevents users from changing their own role, and adds admin profile management policies. After applying it, promote trusted administrators using a trusted Supabase SQL session. In production, disable public signups in Supabase Auth and provision staff through trusted invitations; never grant a role through user-editable metadata.
+
+### AI Copilot
+
+The Copilot is disabled unless `AI_COPILOT_ENABLED=true`. Apply migrations `022` and `023`, test the RLS policies and service-role functions in a disposable Supabase project, then configure these server-only variables: `SUPABASE_SERVICE_ROLE_KEY`, `AI_API_KEY`, `AI_MODEL`, `AI_INPUT_COST_PER_MILLION_USD`, and `AI_OUTPUT_COST_PER_MILLION_USD`. Optional settings include `AI_BASE_URL`, `AI_DAILY_BUDGET_USD` (maximum 10 USD), `AI_MAX_REQUESTS_PER_HOUR` (maximum 20), and `AI_MAX_REQUEST_COST_USD` (maximum 0.50 USD). Never prefix provider or service-role credentials with `NEXT_PUBLIC_`.
+
+The configured provider must support an OpenAI-compatible chat-completions endpoint with JSON-object output and token usage reporting. Copilot currently supports predefined, read-only questions; it does not modify business records or process document uploads.
 
 ## PDF Generation
 

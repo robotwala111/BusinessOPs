@@ -6,7 +6,7 @@ import { FormEvent, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 
 export function RegisterForm() {
-  const { register, isConfigured } = useAuth();
+  const { register, isConfigured, isDemoMode, isRegistrationEnabled } = useAuth();
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -23,7 +23,7 @@ export function RegisterForm() {
 
     try {
       await register(email, password, fullName);
-      setMessage("Admin account created. You can now continue to the dashboard.");
+      setMessage("Account created. You can now continue to the dashboard.");
       router.replace("/dashboard");
     } catch (error) {
       setErrorMessage(
@@ -38,9 +38,18 @@ export function RegisterForm() {
 
   return (
     <form className="auth-form" onSubmit={handleSubmit}>
-      {!isConfigured ? (
+      {!isRegistrationEnabled ? (
+        <div className="form-note">
+          Account registration is disabled. Ask an administrator to provision your account.
+        </div>
+      ) : isDemoMode ? (
         <div className="form-note">
           Demo mode: this creates a temporary local admin session.
+        </div>
+      ) : null}
+      {!isConfigured && !isDemoMode ? (
+        <div className="form-error">
+          Supabase is not configured. Account creation is unavailable until it is configured.
         </div>
       ) : null}
       {errorMessage ? <div className="form-error">{errorMessage}</div> : null}
@@ -77,8 +86,8 @@ export function RegisterForm() {
           required
         />
       </label>
-      <button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Creating account..." : "Create admin account"}
+      <button type="submit" disabled={isSubmitting || !isRegistrationEnabled}>
+        {isSubmitting ? "Creating account..." : "Create account"}
       </button>
       <div className="auth-links">
         <Link href="/login">Back to login</Link>
