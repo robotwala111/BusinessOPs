@@ -31,13 +31,30 @@ export function LoginForm() {
     }
   }
 
+  function handleFillDemo() {
+    setEmail("demo-admin@example.local");
+    setPassword("Admin@123");
+    setErrorMessage("");
+  }
+
   return (
     <form className="auth-form" onSubmit={handleSubmit}>
       {isDemoMode ? (
-        <div className="form-note">
-          Demo mode: use demo-admin@example.local and password Admin@123.
+        <div className="form-note demo-helper-box">
+          <div className="demo-helper-text">
+            <strong>Demo Sandbox Mode</strong>
+            <small>Default credentials: demo-admin@example.local / Admin@123</small>
+          </div>
+          <button
+            type="button"
+            className="btn-demo-autofill"
+            onClick={handleFillDemo}
+          >
+            ⚡ Autofill Demo
+          </button>
         </div>
       ) : null}
+
       {!isConfigured && !isDemoMode ? (
         <div className="form-error">
           Supabase is not configured. Authentication is unavailable until it is configured.
@@ -46,10 +63,11 @@ export function LoginForm() {
       {errorMessage ? <div className="form-error">{errorMessage}</div> : null}
 
       <label>
-        Email
+        Email Address
         <input
           type="email"
           autoComplete="email"
+          placeholder="name@company.com"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
@@ -60,17 +78,18 @@ export function LoginForm() {
         <input
           type="password"
           autoComplete="current-password"
+          placeholder="••••••••"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
         />
       </label>
-      <button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Signing in..." : "Sign in"}
+      <button type="submit" className="btn-primary auth-submit-btn" disabled={isSubmitting}>
+        {isSubmitting ? "Signing in..." : "Sign in to Workspace"}
       </button>
       <div className="auth-links">
         <Link href="/forgot-password">Forgot password?</Link>
-        <Link href="/register">Create account</Link>
+        <Link href="/register">Create new account</Link>
       </div>
     </form>
   );

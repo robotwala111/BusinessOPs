@@ -3,6 +3,8 @@ import { clientService } from "@/services/clientService";
 import { settingsService } from "@/services/settingsService";
 import { historyService } from "@/services/historyService";
 import { contractService } from "@/services/contractService";
+import { invoiceService } from "@/services/invoiceService";
+import { invoiceLineService, type InvoiceLineDraft } from "@/services/invoiceLineService";
 import { assertQuotationEditable, nextRevision } from "@/lib/commercialRules";
 import { assertTransition } from "@/lib/workflowRules";
 import { calculateTax, calculateTaxableAmount, roundMoney } from "@/lib/businessCalculations";
@@ -489,6 +491,55 @@ export const quotationService = {
       previous_value: null, new_value: { contract_id: contract.id }, description: "Accepted quotation converted to contract",
       actor_id: userId, metadata: { contract_id: contract.id } });
     return contract.id;
+  },
+
+  async convertToInvoice(id: string, userId: string | null) {
+    const source = await this.getQuotationById(id);
+    if (!source) throw new Error("Quotation not found.");
+    if (source.status !== "accepted") throw new Error("Only accepted quotations can create invoices.");
+
+    const invoiceNumber = await invoiceService.generateInvoiceNumber();
+    const invoice = await invoiceService.createInvoice({
+      invoice_number: invoiceNumber,
+      client_id: source.client_id,
+      project_id: source.project_id ?? "",
+      quotation_id: source.id,
+      contract_id: source.generated_contract_id ?? "",
+      invoice_date: new Date().toISOString().slice(0, 10),
+      due_date: new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10),
+      status: "draft",
+      subtotal: source.subtotal,
+      discount_amount: source.discount_amount,
+      tax_percentage: source.tax_rate,
+      notes: `Generated from accepted quotation ${source.quotation_number}`,
+      created_by: userId
+    });
+
+    if (source.items && source.items.length > 0) {
+      const lines: InvoiceLineDraft[] = source.items.map((item) => ({
+        description: item.description,
+        hsn_sac: item.hsn_sac ?? "",
+        unit: item.unit || "unit",
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        discount_rate: item.discount_rate ?? 0,
+        tax_rate: source.tax_rate ?? 18
+      }));
+      await invoiceLineService.saveDraft(invoice, lines, 0, 0);
+    }
+
+    await historyService.record({
+      entity_type: "quotation",
+      entity_id: id,
+      event_type: "converted_to_invoice",
+      previous_value: null,
+      new_value: { invoice_id: invoice.id },
+      description: `Accepted quotation converted to invoice ${invoiceNumber}`,
+      actor_id: userId,
+      metadata: { invoice_id: invoice.id }
+    });
+
+    return invoice.id;
   },
 
   async deleteQuotation(id: string) {

@@ -21,8 +21,8 @@ type QuotationDetailPageProps = {
   quotationId: string;
 };
 
-function value(value?: string | null) {
-  return value || "-";
+function value(val?: string | null) {
+  return val || "-";
 }
 
 export function QuotationDetailPage({ quotationId }: QuotationDetailPageProps) {
@@ -31,6 +31,7 @@ export function QuotationDetailPage({ quotationId }: QuotationDetailPageProps) {
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isConvertingInvoice, setIsConvertingInvoice] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [pdfErrorMessage, setPdfErrorMessage] = useState("");
   const [history, setHistory] = useState<EntityHistory[]>([]);
@@ -56,17 +57,13 @@ export function QuotationDetailPage({ quotationId }: QuotationDetailPageProps) {
   }, [quotationId]);
 
   async function handleDownloadPdf() {
-    if (!quotation) {
-      return;
-    }
+    if (!quotation) return;
 
     setIsGeneratingPdf(true);
     setPdfErrorMessage("");
 
     try {
-      const { generateQuotationPdf } = await import(
-        "@/utils/pdf/generateQuotationPdf"
-      );
+      const { generateQuotationPdf } = await import("@/utils/pdf/generateQuotationPdf");
       await generateQuotationPdf(quotation);
     } catch (error) {
       setPdfErrorMessage(
@@ -80,23 +77,59 @@ export function QuotationDetailPage({ quotationId }: QuotationDetailPageProps) {
   async function transition(status: Quotation["status"]) {
     if (!quotation) return;
     const needsReason = status === "rejected" || status === "draft";
-    const reason = needsReason ? window.prompt("Enter the mandatory reason:") : "";
+    const promptMsg =
+      status === "rejected"
+        ? "Please enter the mandatory reason for rejecting this quotation:"
+        : "Please enter the reason for returning this quotation to draft:";
+    const reason = needsReason ? window.prompt(promptMsg) : "";
     if (needsReason && !reason?.trim()) return;
-    try { setQuotation(await quotationService.transitionQuotation(quotation.id, status, user?.id ?? null, reason ?? ""));
-      setHistory(await historyService.list("quotation", quotation.id)); }
-    catch (error) { setErrorMessage(error instanceof Error ? error.message : "Unable to update quotation."); }
+
+    try {
+      setQuotation(
+        await quotationService.transitionQuotation(
+          quotation.id,
+          status,
+          user?.id ?? null,
+          reason ?? ""
+        )
+      );
+      setHistory(await historyService.list("quotation", quotation.id));
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to update quotation.");
+    }
   }
 
   async function createRevision() {
     if (!quotation) return;
-    try { const revision = await quotationService.createRevision(quotation.id, user?.id ?? null); router.push(`/quotations/${revision.id}`); }
-    catch (error) { setErrorMessage(error instanceof Error ? error.message : "Unable to create revision."); }
+    try {
+      const revision = await quotationService.createRevision(quotation.id, user?.id ?? null);
+      router.push(`/quotations/${revision.id}`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to create revision.");
+    }
   }
 
   async function convertContract() {
     if (!quotation) return;
-    try { const id = await quotationService.convertToContract(quotation.id, user?.id ?? null); router.push(`/contracts/${id}`); }
-    catch (error) { setErrorMessage(error instanceof Error ? error.message : "Unable to create contract."); }
+    try {
+      const id = await quotationService.convertToContract(quotation.id, user?.id ?? null);
+      router.push(`/contracts/${id}`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to create contract.");
+    }
+  }
+
+  async function convertInvoice() {
+    if (!quotation) return;
+    setIsConvertingInvoice(true);
+    try {
+      const invoiceId = await quotationService.convertToInvoice(quotation.id, user?.id ?? null);
+      router.push(`/invoices/${invoiceId}`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to create invoice.");
+    } finally {
+      setIsConvertingInvoice(false);
+    }
   }
 
   if (isLoading) {
@@ -131,21 +164,79 @@ export function QuotationDetailPage({ quotationId }: QuotationDetailPageProps) {
             disabled={isGeneratingPdf}
             onClick={handleDownloadPdf}
           >
-            {isGeneratingPdf ? "Generating quotation PDF..." : "Download PDF"}
+            {isGeneratingPdf ? "Generating PDF..." : "Download PDF"}
           </Button>
-          <Button type="button" variant="secondary" onClick={() => window.print()}>Print</Button>
-          <Button type="button" variant="secondary" disabled>
-            Email
+          <Button type="button" variant="secondary" onClick={() => window.print()}>
+            Print
           </Button>
-          {quotation.status === "draft" ? <Link href={`/quotations/${quotation.id}/edit`}>
-            <Button type="button" variant="secondary">Edit Quotation</Button>
-          </Link> : null}
-          {allowedTransitions("quotation", quotation.status).map((status) => <Button key={status} type="button" variant="secondary" onClick={() => void transition(status as Quotation["status"])}>{status.replace(/_/g, " ")}</Button>)}
-          {["approved", "sent", "rejected", "expired"].includes(quotation.status) ? <Button type="button" variant="secondary" onClick={() => void createRevision()}>Create revision</Button> : null}
-          {quotation.status === "accepted" ? <Button type="button" onClick={() => void convertContract()}>{quotation.generated_contract_id ? "Open contract" : "Create contract"}</Button> : null}
+
+          {quotation.status === "draft" ? (
+            <Link href={`/quotations/${quotation.id}/edit`}>
+              <Button type="button" variant="secondary">Edit Quotation</Button>
+            </Link>
+          ) : null}
+
+          {allowedTransitions("quotation", quotation.status).map((status) => (
+            <Button
+              key={status}
+              type="button"
+              variant="secondary"
+              onClick={() => void transition(status as Quotation["status"])}
+            >
+              Mark {status.replace(/_/g, " ")}
+            </Button>
+          ))}
+
+          {["approved", "sent", "rejected", "expired"].includes(quotation.status) ? (
+            <Button type="button" variant="secondary" onClick={() => void createRevision()}>
+              Create revision
+            </Button>
+          ) : null}
+
+          {quotation.status === "accepted" ? (
+            <>
+              <Button type="button" onClick={() => void convertContract()}>
+                {quotation.generated_contract_id ? "Open Contract" : "Create Contract"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={isConvertingInvoice}
+                onClick={() => void convertInvoice()}
+              >
+                {isConvertingInvoice ? "Generating..." : "+ Create Invoice"}
+              </Button>
+            </>
+          ) : null}
         </div>
       </div>
-      <Card><h2>Revision and activity history</h2>{history.length === 0 ? <p className="muted">No lifecycle events recorded yet.</p> : <ul>{history.map((entry) => <li key={entry.id}>{formatDate(entry.created_at)} — {entry.description}</li>)}</ul>}</Card>
+
+      {quotation.rejected_reason && (
+        <div className="form-error" style={{ margin: "14px 0" }}>
+          <strong>Quotation Rejection Reason:</strong> {quotation.rejected_reason}
+        </div>
+      )}
+
+      {quotation.return_to_draft_reason && (
+        <div className="form-note" style={{ margin: "14px 0" }}>
+          <strong>Returned to Draft Reason:</strong> {quotation.return_to_draft_reason}
+        </div>
+      )}
+
+      <Card>
+        <h2>Revision and activity history</h2>
+        {history.length === 0 ? (
+          <p className="muted">No lifecycle events recorded yet.</p>
+        ) : (
+          <ul>
+            {history.map((entry) => (
+              <li key={entry.id}>
+                {formatDate(entry.created_at)} — {entry.description}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
 
       {pdfErrorMessage ? (
         <div className="form-error">{pdfErrorMessage}</div>
@@ -261,9 +352,7 @@ function SectionCard({
   title: string;
   content?: string | null;
 }) {
-  if (!content) {
-    return null;
-  }
+  if (!content) return null;
 
   return (
     <Card>

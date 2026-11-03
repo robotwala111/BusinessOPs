@@ -105,13 +105,13 @@ export function ClientDetailPage({ clientId }: ClientDetailPageProps) {
         </div>
         <div className="module-actions">
           <BackButton fallbackHref="/clients" />
-          <Link href="/contacts">
+          <Link href={`/contacts?client_id=${client.id}`}>
             <Button type="button" variant="secondary">Add Contact</Button>
           </Link>
-          <Link href="/activities">
+          <Link href={`/activities?client_id=${client.id}`}>
             <Button type="button" variant="secondary">Add Activity</Button>
           </Link>
-          <Link href="/activities">
+          <Link href={`/activities?client_id=${client.id}`}>
             <Button type="button" variant="secondary">View All</Button>
           </Link>
           <Link href={`/clients/${client.id}/edit`}>

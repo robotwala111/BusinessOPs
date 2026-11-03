@@ -1,16 +1,35 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { settingsService } from "@/services/settingsService";
 import type { EffectiveCompanySettings } from "@/types/settings";
 
+const routeNames: Record<string, string> = {
+  "/dashboard": "Dashboard",
+  "/copilot": "AI Copilot",
+  "/clients": "Clients",
+  "/leads": "Leads",
+  "/contacts": "Contacts",
+  "/activities": "Activities",
+  "/projects": "Projects",
+  "/quotations": "Quotations",
+  "/contracts": "Contracts",
+  "/invoices": "Invoices",
+  "/expenses": "Expenses",
+  "/maintenance": "Maintenance",
+  "/support": "Support Tickets",
+  "/notifications": "Notifications",
+  "/settings": "Settings"
+};
+
 export function Topbar() {
-  const { logout, profile } = useAuth();
+  const { logout, profile, isDemoMode } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [settings, setSettings] = useState<EffectiveCompanySettings | null>(null);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     void settingsService.getEffectiveCompanySettings().then(setSettings);
@@ -27,15 +46,87 @@ export function Topbar() {
     }
   }
 
+  // Derive page title from route
+  const currentKey = Object.keys(routeNames).find((key) => pathname === key || pathname.startsWith(`${key}/`));
+  const currentPageTitle = currentKey ? routeNames[currentKey] : "Operations";
+
+  const initials = profile?.full_name
+    ? profile.full_name
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((n) => n[0]?.toUpperCase())
+        .join("")
+    : "OP";
+
   return (
     <header className="topbar">
-      <div>
-        <span>{settings?.company_name ?? "Business Operations"}</span>
-        {profile?.full_name ? <small>{profile.full_name}</small> : null}
+      <div className="topbar-left">
+        <div className="topbar-brand-icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div className="topbar-breadcrumb">
+          <span className="topbar-company">{settings?.company_name ?? "Amiro Tech Solutions"}</span>
+          <span className="topbar-separator" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </span>
+          <span className="topbar-title">{currentPageTitle}</span>
+        </div>
       </div>
-      <button type="button" onClick={handleLogout} disabled={isLoggingOut}>
-        {isLoggingOut ? "Signing out..." : "Logout"}
-      </button>
+
+      <div className="topbar-center">
+        <div className="topbar-search-trigger">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <span>Search operations & data...</span>
+          <kbd>Ctrl K</kbd>
+        </div>
+      </div>
+
+      <div className="topbar-right">
+        {isDemoMode ? (
+          <span className="topbar-mode-badge" title="Running in local sandbox mode without external database">
+            <span className="topbar-mode-dot" />
+            Demo Mode
+          </span>
+        ) : (
+          <span className="topbar-mode-badge connected" title="Connected to database">
+            <span className="topbar-mode-dot connected" />
+            Live
+          </span>
+        )}
+
+        <div className="topbar-user-pill">
+          <div className="topbar-avatar" aria-hidden="true">
+            {initials}
+          </div>
+          <div className="topbar-user-info">
+            <span className="topbar-user-name">{profile?.full_name || "Admin User"}</span>
+            <span className="topbar-user-role">{profile?.role || "Admin"}</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="topbar-logout-btn"
+          onClick={handleLogout}
+          disabled={isLoggingOut}
+          title="Sign out of system"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" x2="9" y1="12" y2="12" />
+          </svg>
+          <span>{isLoggingOut ? "..." : "Sign Out"}</span>
+        </button>
+      </div>
     </header>
   );
 }

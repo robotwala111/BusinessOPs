@@ -36,6 +36,8 @@ export const maintenanceService = {
       monthly_fee: toNumber(data.monthly_fee),
       yearly_fee: toNumber(data.yearly_fee),
       included_hours: toNumber(data.included_hours),
+      response_sla_hours: data.response_sla_hours != null ? toNumber(data.response_sla_hours) : null,
+      resolution_sla_hours: data.resolution_sla_hours != null ? toNumber(data.resolution_sla_hours) : null,
       status: data.status,
       renewal_date: data.renewal_date || null,
       notes: normalizeText(data.notes),

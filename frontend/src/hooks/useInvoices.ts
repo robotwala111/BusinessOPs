@@ -13,6 +13,9 @@ export function useInvoices() {
   const [errorMessage, setErrorMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | "all">("all");
+  const [clientFilter, setClientFilter] = useState<string>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
 
   async function loadInvoices() {
     setIsLoading(true);
@@ -30,11 +33,23 @@ export function useInvoices() {
     void loadInvoices();
   }, []);
 
-  const filteredInvoices = useMemo(() => invoices.filter((invoice) => {
-    const q = searchTerm.toLowerCase();
-    return (statusFilter === "all" || invoice.status === statusFilter)
-      && (!q || [invoice.invoice_number, invoice.client?.company_name].some((value) => value?.toLowerCase().includes(q)));
-  }), [invoices, searchTerm, statusFilter]);
+  const filteredInvoices = useMemo(() => {
+    return invoices.filter((invoice) => {
+      const q = searchTerm.toLowerCase();
+      const matchesSearch =
+        !q ||
+        [invoice.invoice_number, invoice.client?.company_name, invoice.notes].some((val) =>
+          val?.toLowerCase().includes(q)
+        );
+
+      const matchesStatus = statusFilter === "all" || invoice.status === statusFilter;
+      const matchesClient = clientFilter === "all" || invoice.client_id === clientFilter;
+      const matchesStart = !startDate || invoice.invoice_date >= startDate;
+      const matchesEnd = !endDate || invoice.invoice_date <= endDate;
+
+      return matchesSearch && matchesStatus && matchesClient && matchesStart && matchesEnd;
+    });
+  }, [invoices, searchTerm, statusFilter, clientFilter, startDate, endDate]);
 
   async function saveInvoice(data: InvoiceFormData, id?: string) {
     const record = id
@@ -55,5 +70,24 @@ export function useInvoices() {
     await loadInvoices();
   }
 
-  return { invoices, filteredInvoices, isLoading, errorMessage, searchTerm, statusFilter, setSearchTerm, setStatusFilter, saveInvoice, deleteInvoice, addPayment, loadInvoices };
+  return {
+    invoices,
+    filteredInvoices,
+    isLoading,
+    errorMessage,
+    searchTerm,
+    statusFilter,
+    clientFilter,
+    startDate,
+    endDate,
+    setSearchTerm,
+    setStatusFilter,
+    setClientFilter,
+    setStartDate,
+    setEndDate,
+    saveInvoice,
+    deleteInvoice,
+    addPayment,
+    loadInvoices
+  };
 }

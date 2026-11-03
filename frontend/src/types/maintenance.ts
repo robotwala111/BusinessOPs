@@ -91,6 +91,8 @@ export type MaintenanceContractFormData = {
   monthly_fee: number;
   yearly_fee: number;
   included_hours: number;
+  response_sla_hours?: number | null;
+  resolution_sla_hours?: number | null;
   status: MaintenanceStatus;
   renewal_date: string;
   notes: string;
