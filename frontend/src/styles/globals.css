@@ -1778,51 +1778,6 @@ body {
   font-size: 0.82rem;
 }
 
-.topbar-center {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center;
-  flex: 1;
-  max-width: 440px;
-  margin: 0 16px;
-}
-
-.topbar-search-trigger {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 6px 14px;
-  border-radius: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  color: #64748b;
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 160ms ease;
-}
-
-.topbar-search-trigger:hover {
-  background: #ffffff;
-  border-color: #cbd5e1;
-  color: #334155;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
-}
-
-.topbar-search-trigger kbd {
-  margin-left: auto;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  color: #64748b;
-  font-size: 0.7rem;
-  font-weight: 600;
-  font-family: inherit;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
-}
-
 .topbar-right {
   display: flex !important;
   align-items: center !important;
