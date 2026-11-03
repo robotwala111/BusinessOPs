@@ -247,6 +247,7 @@ export function Sidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={true}
                     className={`sidebar-nav-item ${isActive ? "active" : ""}`}
                   >
                     <IconComponent className="sidebar-nav-icon" />
