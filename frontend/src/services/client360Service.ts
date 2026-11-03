@@ -39,3 +39,4 @@ export const client360Service = {
   }
 };
 
+export type Client360Data = Awaited<ReturnType<typeof client360Service.load>>;

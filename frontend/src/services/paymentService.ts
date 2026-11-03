@@ -242,4 +242,28 @@ export const paymentService = {
       metadata: { invoice_id: payment.invoice_id },
     });
   },
+
+  async getAllPayments(): Promise<Payment[]> {
+    if (!isSupabaseConfigured) {
+      return readDemoRecords<Payment>(PAYMENT_KEY);
+    }
+    const { data, error } = await requireSupabase()
+      .from('payments')
+      .select('*')
+      .order('payment_date', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as Payment[];
+  },
+  async getPaymentsByInvoice(invoiceId: string): Promise<Payment[]> {
+    if (!isSupabaseConfigured) {
+      return readDemoRecords<Payment>(PAYMENT_KEY).filter((p) => p.invoice_id === invoiceId);
+    }
+    const { data, error } = await requireSupabase()
+      .from('payments')
+      .select('*')
+      .eq('invoice_id', invoiceId)
+      .order('payment_date', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as Payment[];
+  },
 };

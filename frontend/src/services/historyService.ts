@@ -17,6 +17,18 @@ export const historyService = {
     if (error) throw error;
     return (data ?? []) as EntityHistory[];
   },
+  async listAll(limit = 50): Promise<EntityHistory[]> {
+    if (!isSupabaseConfigured) {
+      return readDemoRecords<EntityHistory>(KEY)
+        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .slice(0, limit);
+    }
+    const { data, error } = await requireSupabase().from("entity_history").select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return (data ?? []) as EntityHistory[];
+  },
   async record(input: Omit<EntityHistory, "id" | "created_at">) {
     if (!isSupabaseConfigured) {
       const entry = { id: crypto.randomUUID(), ...input, created_at: new Date().toISOString() };
@@ -28,4 +40,3 @@ export const historyService = {
     return data as EntityHistory;
   }
 };
-
