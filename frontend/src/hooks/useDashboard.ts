@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { dashboardService } from "@/services/dashboardService";
 import type { DashboardMetrics } from "@/types/dashboard";
 
@@ -9,19 +9,33 @@ export function useDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
 
-  useEffect(() => {
-    async function load() {
-      setIsLoading(true);
-      try {
-        setMetrics(await dashboardService.getDashboardMetrics());
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : "Unable to load dashboard.");
-      } finally {
-        setIsLoading(false);
-      }
+  const refresh = useCallback(async () => {
+    try {
+      const data = await dashboardService.getDashboardMetrics();
+      setMetrics(data);
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to load dashboard.");
+    } finally {
+      setIsLoading(false);
     }
-    void load();
   }, []);
 
-  return { metrics, isLoading, errorMessage };
+  useEffect(() => {
+    void refresh();
+
+    // Auto-refresh when user switches back to the tab or storage updates
+    function handleFocus() {
+      void refresh();
+    }
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("storage", handleFocus);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("storage", handleFocus);
+    };
+  }, [refresh]);
+
+  return { metrics, isLoading, errorMessage, refresh };
 }

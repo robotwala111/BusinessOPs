@@ -29,11 +29,32 @@ function pct(value: number, total: number) {
   return Math.round((value / total) * 100);
 }
 
-function fmtCompact(n: number) {
-  if (n >= 10_000_000) return `₹${(n / 10_000_000).toFixed(2)} Cr`;
-  if (n >= 100_000) return `₹${(n / 100_000).toFixed(2)} L`;
-  if (n >= 1_000) return `₹${(n / 1_000).toFixed(1)}K`;
-  return `₹${n.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+function formatYTick(n: number) {
+  if (n >= 10_000_000) return `${(n / 10_000_000).toFixed(1)}Cr`;
+  if (n >= 100_000) return `${(n / 100_000).toFixed(1)}L`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
+  return String(n);
+}
+
+function getCurvedPath(points: Array<[number, number]>): string {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M ${points[0][0]} ${points[0][1]}`;
+
+  let path = `M ${points[0][0]} ${points[0][1]}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = points[i === 0 ? i : i - 1];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2 < points.length ? i + 2 : i + 1];
+
+    const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
+
+    path += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return path;
 }
 
 /* ── Revenue Chart ───────────────────────────────────────────────── */
@@ -50,7 +71,8 @@ function RevenueChart({ trends }: { trends: DashboardMetrics["monthlyTrends"] })
   const innerW = chartW - padL - padR;
   const innerH = chartH - padT - padB;
 
-  const maxVal = Math.max(...trends.map((t) => Math.max(t.revenue, t.expenses)), 1);
+  const rawMax = Math.max(...trends.map((t) => Math.max(t.revenue, t.expenses)), 0);
+  const maxVal = rawMax > 0 ? Math.ceil(rawMax * 1.2) : 50000;
   const yTicks = [0, Math.round(maxVal * 0.33), Math.round(maxVal * 0.66), maxVal];
 
   const xStep = trends.length > 1 ? innerW / (trends.length - 1) : innerW;
@@ -59,17 +81,16 @@ function RevenueChart({ trends }: { trends: DashboardMetrics["monthlyTrends"] })
     return padL + i * xStep;
   }
   function toY(v: number) {
-    return padT + innerH - (v / maxVal) * innerH;
+    return padT + innerH - (Math.max(v, 0) / maxVal) * innerH;
   }
 
-  // Revenue area path
-  const revPoints = trends.map((t, i) => `${toX(i)},${toY(t.revenue)}`);
-  const revLine = `M${revPoints.join(" L")}`;
-  const revArea = `${revLine} L${toX(trends.length - 1)},${toY(0)} L${toX(0)},${toY(0)} Z`;
+  // Generate smooth spline paths
+  const revPoints: Array<[number, number]> = trends.map((t, i) => [toX(i), toY(t.revenue)]);
+  const revCurve = getCurvedPath(revPoints);
+  const revArea = `${revCurve} L ${toX(trends.length - 1)} ${toY(0)} L ${toX(0)} ${toY(0)} Z`;
 
-  // Expense area path
-  const expPoints = trends.map((t, i) => `${toX(i)},${toY(t.expenses)}`);
-  const expLine = `M${expPoints.join(" L")}`;
+  const expPoints: Array<[number, number]> = trends.map((t, i) => [toX(i), toY(t.expenses)]);
+  const expCurve = getCurvedPath(expPoints);
 
   return (
     <div className="exec-chart-container">
@@ -94,9 +115,13 @@ function RevenueChart({ trends }: { trends: DashboardMetrics["monthlyTrends"] })
         >
           <defs>
             <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.25" />
-              <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.02" />
+              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.28" />
+              <stop offset="60%" stopColor="#f59e0b" stopOpacity="0.08" />
+              <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
             </linearGradient>
+            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="3" stdDeviation="3" floodColor="#f59e0b" floodOpacity="0.25" />
+            </filter>
           </defs>
 
           {/* Y-axis gridlines */}
@@ -118,19 +143,48 @@ function RevenueChart({ trends }: { trends: DashboardMetrics["monthlyTrends"] })
                 fontSize="10"
                 fontWeight="600"
               >
-                {tick >= 1000 ? `${Math.round(tick / 1000)}k` : tick}
+                {formatYTick(tick)}
               </text>
             </g>
           ))}
 
-          {/* Revenue area fill */}
+          {/* Revenue smooth area fill */}
           <path d={revArea} fill="url(#revGrad)" />
 
-          {/* Revenue line */}
-          <path d={revLine} fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Revenue smooth spline */}
+          <path
+            d={revCurve}
+            fill="none"
+            stroke="#f59e0b"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            filter="url(#glow)"
+          />
 
-          {/* Expense line */}
-          <path d={expLine} fill="none" stroke="#f87171" strokeWidth="2" strokeDasharray="6 4" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Expense smooth spline */}
+          <path
+            d={expCurve}
+            fill="none"
+            stroke="#f87171"
+            strokeWidth="2"
+            strokeDasharray="5 4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+
+          {/* Data Points */}
+          {trends.map((t, i) => (
+            <circle
+              key={`dot-${i}`}
+              cx={toX(i)}
+              cy={toY(t.revenue)}
+              r={hoverIdx === i ? 6 : 4}
+              fill="#ffffff"
+              stroke="#f59e0b"
+              strokeWidth={hoverIdx === i ? 3 : 2}
+            />
+          ))}
 
           {/* X-axis labels */}
           {trends.map((t, i) => (
@@ -139,9 +193,9 @@ function RevenueChart({ trends }: { trends: DashboardMetrics["monthlyTrends"] })
               x={toX(i)}
               y={chartH - 6}
               textAnchor="middle"
-              fill="#94a3b8"
+              fill={hoverIdx === i ? "#0f172a" : "#94a3b8"}
               fontSize="11"
-              fontWeight="600"
+              fontWeight={hoverIdx === i ? "700" : "600"}
             >
               {t.month}
             </text>
@@ -156,6 +210,7 @@ function RevenueChart({ trends }: { trends: DashboardMetrics["monthlyTrends"] })
                 width={xStep}
                 height={innerH}
                 fill="transparent"
+                style={{ cursor: "pointer" }}
               />
               {hoverIdx === i && (
                 <>
@@ -165,12 +220,14 @@ function RevenueChart({ trends }: { trends: DashboardMetrics["monthlyTrends"] })
                     x2={toX(i)}
                     y2={padT + innerH}
                     stroke="#f59e0b"
-                    strokeWidth="1"
+                    strokeWidth="1.5"
                     strokeDasharray="4 3"
-                    opacity="0.5"
+                    opacity="0.6"
                   />
-                  <circle cx={toX(i)} cy={toY(t.revenue)} r="5" fill="#f59e0b" stroke="#fff" strokeWidth="2.5" />
-                  <circle cx={toX(i)} cy={toY(t.expenses)} r="4" fill="#f87171" stroke="#fff" strokeWidth="2" />
+                  <circle cx={toX(i)} cy={toY(t.revenue)} r="6" fill="#f59e0b" stroke="#fff" strokeWidth="2.5" />
+                  {t.expenses > 0 && (
+                    <circle cx={toX(i)} cy={toY(t.expenses)} r="5" fill="#f87171" stroke="#fff" strokeWidth="2" />
+                  )}
                 </>
               )}
             </g>
@@ -182,12 +239,12 @@ function RevenueChart({ trends }: { trends: DashboardMetrics["monthlyTrends"] })
           <div
             className="exec-chart-tooltip"
             style={{
-              left: `${(toX(hoverIdx) / chartW) * 100}%`,
+              left: `${Math.min(Math.max((toX(hoverIdx) / chartW) * 100, 18), 82)}%`,
             }}
           >
             <div className="exec-tooltip-label">{trends[hoverIdx].month}</div>
             <div className="exec-tooltip-row">
-              <span>Income</span>
+              <span>Realized Revenue</span>
               <strong style={{ color: "#f59e0b" }}>
                 {formatCurrency(trends[hoverIdx].revenue)}
               </strong>
@@ -200,7 +257,7 @@ function RevenueChart({ trends }: { trends: DashboardMetrics["monthlyTrends"] })
             </div>
             <div className="exec-tooltip-divider" />
             <div className="exec-tooltip-row">
-              <span>Net</span>
+              <span>Net Margin</span>
               <strong style={{ color: trends[hoverIdx].net >= 0 ? "#10b981" : "#ef4444" }}>
                 {formatCurrency(trends[hoverIdx].net)}
               </strong>
@@ -215,15 +272,24 @@ function RevenueChart({ trends }: { trends: DashboardMetrics["monthlyTrends"] })
 /* ── Main Dashboard Page ─────────────────────────────────────────── */
 
 export default function DashboardPage() {
-  const { metrics, isLoading, errorMessage } = useDashboard();
+  const { metrics, isLoading, errorMessage, refresh } = useDashboard();
   const { profile } = useAuth();
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [motivationalText] = useState(
     () => greetings[Math.floor(Math.random() * greetings.length)]
   );
 
-  const userName = profile?.full_name || "Admin";
   const companyName = profile?.company_name || "Amiro Tech Solutions";
+
+  async function handleRefresh() {
+    setIsRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }
 
   // Compute operational KPIs
   const kpis = useMemo(() => {
@@ -231,21 +297,12 @@ export default function DashboardPage() {
 
     const totalInvoiced = metrics.paidRevenue + metrics.outstandingAmount;
     const collectionRate = totalInvoiced > 0 ? pct(metrics.paidRevenue, totalInvoiced) : 100;
-    const quoteConversion = metrics.totalQuotations > 0
-      ? pct(
-          Object.entries(metrics.quotationStatusBreakdown)
-            .filter(([s]) => s === "accepted" || s === "converted")
-            .reduce((sum, [, c]) => sum + c, 0),
-          metrics.totalQuotations
-        )
-      : 0;
     const clientEngagement = metrics.totalClients > 0
       ? pct(metrics.activeClients, metrics.totalClients)
       : 0;
 
     return {
       collectionRate,
-      quoteConversion,
       clientEngagement,
     };
   }, [metrics]);
@@ -277,14 +334,26 @@ export default function DashboardPage() {
 
   return (
     <section className="exec-dash">
-      {/* ── Greeting Header ── */}
-      <header className="exec-greeting">
+      {/* ── Greeting Header with Refresh Button ── */}
+      <header className="exec-greeting" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <h1 className="exec-greeting-title">
             {getGreeting()}, <span className="exec-name-highlight">{companyName}.</span>
           </h1>
           <p className="exec-greeting-sub">{motivationalText}</p>
         </div>
+        <button
+          type="button"
+          className="exec-refresh-btn"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          title="Refresh dashboard metrics"
+        >
+          <svg className={isRefreshing ? "exec-spin" : ""} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+          </svg>
+          <span>{isRefreshing ? "Updating…" : "Refresh"}</span>
+        </button>
       </header>
 
       {/* ── KPI Strip ── */}
