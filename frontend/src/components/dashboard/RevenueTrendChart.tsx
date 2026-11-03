@@ -320,3 +320,4 @@ export function RevenueTrendChart({ data }: Props) {
     </div>
   );
 }
+

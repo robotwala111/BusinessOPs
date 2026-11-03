@@ -5,23 +5,32 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { settingsService } from "@/services/settingsService";
 import type { EffectiveCompanySettings } from "@/types/settings";
+import { QuickCreateMenu } from "./QuickCreateMenu";
+import { ThemeToggle } from "./ThemeToggle";
 
 const routeNames: Record<string, string> = {
-  "/dashboard": "Dashboard",
-  "/copilot": "AI Copilot",
-  "/clients": "Clients",
-  "/leads": "Leads",
-  "/contacts": "Contacts",
-  "/activities": "Activities",
-  "/projects": "Projects",
-  "/quotations": "Quotations",
-  "/contracts": "Contracts",
-  "/invoices": "Invoices",
-  "/expenses": "Expenses",
-  "/maintenance": "Maintenance",
-  "/support": "Support Tickets",
+  "/dashboard": "Executive Dashboard",
+  "/copilot": "Amiro Intelligence",
+  "/clients": "Clients Directory",
+  "/clients/onboard": "Client Onboarding Wizard",
+  "/leads": "Leads & Pipeline",
+  "/contacts": "Contacts & Stakeholders",
+  "/activities": "Activities & Notes",
+  "/projects": "Projects & Operations",
+  "/quotations": "Quotations & Proposals",
+  "/contracts": "Contracts & SOWs",
+  "/invoices": "Invoices & Billing",
+  "/expenses": "Expenses Ledger",
+  "/payments": "Payments & Collections",
+  "/reports/finance": "Financial Reports",
+  "/maintenance": "Maintenance & AMC",
+  "/support": "Support & SLA",
   "/notifications": "Notifications",
-  "/settings": "Settings"
+  "/settings": "Platform Settings",
+  "/settings/users": "User Management",
+  "/settings/roles": "Roles & Permissions",
+  "/settings/audit": "Audit Logs",
+  "/portal": "Client Portal"
 };
 
 export function Topbar() {
@@ -57,10 +66,15 @@ export function Topbar() {
         .slice(0, 2)
         .map((n) => n[0]?.toUpperCase())
         .join("")
-    : "OP";
+    : "AT";
+
+  function openCommandPalette() {
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+  }
 
   return (
     <header className="topbar">
+      {/* Left: Breadcrumbs & Organization */}
       <div className="topbar-left">
         <div className="topbar-brand-icon" aria-hidden="true">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -78,19 +92,43 @@ export function Topbar() {
         </div>
       </div>
 
+      {/* Right Controls: Command Palette trigger, Quick Create, Theme Toggle, Mode Badge, User Pill, Sign Out */}
       <div className="topbar-right">
+        {/* Command Palette Trigger */}
+        <button
+          type="button"
+          className="topbar-cmd-trigger"
+          onClick={openCommandPalette}
+          title="Open Command Palette (Ctrl + K)"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <span>Search & commands</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+
+        {/* Quick Create Dropdown Menu */}
+        <QuickCreateMenu />
+
+        {/* Theme Toggle (Light / Dark) */}
+        <ThemeToggle />
+
+        {/* Mode Indicator */}
         {isDemoMode ? (
-          <span className="topbar-mode-badge" title="Running in local sandbox mode without external database">
+          <span className="topbar-mode-badge" title="Running in local sandbox mode with isolated state">
             <span className="topbar-mode-dot" />
             Demo Mode
           </span>
         ) : (
-          <span className="topbar-mode-badge connected" title="Connected to database">
+          <span className="topbar-mode-badge connected" title="Connected to production database">
             <span className="topbar-mode-dot connected" />
-            Live
+            Live Cloud
           </span>
         )}
 
+        {/* User Pill */}
         <div className="topbar-user-pill">
           <div className="topbar-avatar" aria-hidden="true">
             {initials}
@@ -101,6 +139,7 @@ export function Topbar() {
           </div>
         </div>
 
+        {/* Sign Out Button */}
         <button
           type="button"
           className="topbar-logout-btn"

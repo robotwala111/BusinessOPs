@@ -279,3 +279,4 @@ export function ClientPortfolioSection({ insights, statusBreakdown }: Props) {
     </div>
   );
 }
+

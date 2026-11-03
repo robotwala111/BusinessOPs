@@ -82,3 +82,4 @@ export function KeyStakeholdersRoster({ contacts }: Props) {
     </div>
   );
 }
+
