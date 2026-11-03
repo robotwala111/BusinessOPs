@@ -31,7 +31,6 @@ const defaultCommands: CommandItem[] = [
   { id: "nav-ai", category: "Navigation", title: "Amiro Intelligence (AI Assistant)", subtitle: "Ask business questions & get insights", href: "/copilot", icon: "🤖" },
   { id: "nav-clients", category: "Navigation", title: "Clients Directory", subtitle: "Client 360° management & accounts", href: "/clients", icon: "👥" },
   { id: "nav-leads", category: "Navigation", title: "Leads & Prospects", subtitle: "CRM pipeline & qualification", href: "/leads", icon: "📈" },
-  { id: "nav-contacts", category: "Navigation", title: "Key Contacts & Stakeholders", subtitle: "Directory of client persons", href: "/contacts", icon: "📇" },
   { id: "nav-projects", category: "Navigation", title: "Projects & Operations", subtitle: "Active projects & delivery milestones", href: "/projects", icon: "📁" },
   { id: "nav-quotes", category: "Navigation", title: "Quotations & Proposals", subtitle: "Commercial pricing & approvals", href: "/quotations", icon: "📑" },
   { id: "nav-contracts", category: "Navigation", title: "Contracts & SOWs", subtitle: "Legal agreements & versioning", href: "/contracts", icon: "⚖️" },

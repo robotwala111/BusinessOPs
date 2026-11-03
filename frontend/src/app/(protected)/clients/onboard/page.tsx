@@ -3,3 +3,4 @@ import { ClientOnboardingWizard } from "@/components/clients/ClientOnboardingWiz
 export default function ClientOnboardingPage() {
   return <ClientOnboardingWizard />;
 }
+

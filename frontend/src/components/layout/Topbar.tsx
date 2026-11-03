@@ -14,7 +14,6 @@ const routeNames: Record<string, string> = {
   "/clients": "Clients Directory",
   "/clients/onboard": "Client Onboarding Wizard",
   "/leads": "Leads & Pipeline",
-  "/contacts": "Contacts & Stakeholders",
   "/activities": "Activities & Notes",
   "/projects": "Projects & Operations",
   "/quotations": "Quotations & Proposals",
