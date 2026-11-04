@@ -41,4 +41,14 @@ describe("Conversation language stickiness and consistency", () => {
     expect(res.conversation.language).toBe("te");
     expect(res.assistantMessage.content).toMatch(/ఇన్వాయిస్|బకాయి|శుభవార్త/);
   });
+
+  it("answers 'what your name' in Tamil when Tamil is selected", async () => {
+    // Exact user scenario from screenshot: Tamil selected, user asks 'what your name'
+    const res = await askAmiroIntelligenceDemo("what your name", "conv-test-tamil-name", "ta");
+    expect(res.conversation.language).toBe("ta");
+    // Must contain Tamil script and NOT English
+    expect(res.assistantMessage.content).toContain("அமிரோ");
+    expect(res.assistantMessage.content).not.toContain("I'm here to assist with Amiro Tech Solutions operations");
+  });
 });
+

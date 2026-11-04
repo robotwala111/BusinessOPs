@@ -423,14 +423,19 @@ export async function askAmiroIntelligenceDemo(
       case "clients_overview": {
         const activeCount = clients.filter((c) => c.status === "active").length;
         if (clients.length === 0) {
-          answer = "There are currently no clients registered in the system. You can onboard new clients from the Clients module.";
+          answer = lang === "ta"
+            ? "கணினியில் தற்போது வாடிக்கையாளர்கள் யாரும் பதிவு செய்யப்படவில்லை."
+            : (lang === "te" ? "ప్రస్తుతం సిస్టమ్‌లో క్లయింట్లు ఎవరూ నమోదు కాలేదు." : (lang === "hi" ? "सिस्टम में वर्तमान में कोई ग्राहक पंजीकृत नहीं है।" : "There are currently no clients registered in the system."));
         } else {
-          if (lang === "hi") {
-            answer = `सिस्टम में कुल **${clients.length} क्लाइंट्स** दर्ज हैं (**${activeCount} सक्रिय**):\n\n` +
-              clients.map((c) => `• **${c.company_name}** (${c.industry || "General"}): स्थिति ${c.status.toUpperCase()}`).join("\n");
+          if (lang === "ta") {
+            answer = `கணினியில் மொத்தம் **${clients.length} வாடிக்கையாளர் கணக்குகள்** உள்ளன (**${activeCount} செயலில்**):\n\n` +
+              clients.map((c) => `• **${c.company_name}** (${c.industry || "General"}): நிலை ${c.status}`).join("\n");
           } else if (lang === "te") {
             answer = `సిస్టమ్‌లో మొత్తం **${clients.length} క్లయింట్లు** ఉన్నారు (**${activeCount} యాక్టివ్**):\n\n` +
               clients.map((c) => `• **${c.company_name}** (${c.industry || "General"}): స్థితి ${c.status}`).join("\n");
+          } else if (lang === "hi") {
+            answer = `सिस्टम में कुल **${clients.length} क्लाइंट्स** दर्ज हैं (**${activeCount} सक्रिय**):\n\n` +
+              clients.map((c) => `• **${c.company_name}** (${c.industry || "General"}): स्थिति ${c.status.toUpperCase()}`).join("\n");
           } else {
             answer = `There are **${clients.length} client account(s)** registered in the platform (**${activeCount} active**):\n\n` +
               clients.map((c) => `• **${c.company_name}** [${c.industry || "Enterprise"} · Status: ${c.status.toUpperCase()}]`).join("\n");
@@ -441,12 +446,17 @@ export async function askAmiroIntelligenceDemo(
 
       case "active_projects": {
         if (projects.length === 0) {
-          answer = lang === "te"
-            ? "ప్రస్తుతం సిస్టమ్‌లో యాక్టివ్ ప్రాజెక్ట్‌లు ఏవీ లేవు."
-            : (lang === "hi" ? "वर्तमान में कोई सक्रिय प्रोजेक्ट दर्ज नहीं है।" : "There are currently no active projects recorded.");
+          answer = lang === "ta"
+            ? "கணினியில் செயலில் உள்ள திட்டப்பணிகள் எதுவும் பதிவு செய்யப்படவில்லை."
+            : (lang === "te"
+              ? "ప్రస్తుతం సిస్టమ్‌లో యాక్టివ్ ప్రాజెక్ట్‌లు ఏవీ లేవు."
+              : (lang === "hi" ? "वर्तमान में कोई सक्रिय प्रोजेक्ट दर्ज नहीं है।" : "There are currently no active projects recorded."));
         } else {
           const inFlight = projects.filter((p) => p.status === "active" || p.status === "planned");
-          if (lang === "te") {
+          if (lang === "ta") {
+            answer = `கணினியில் மொத்தம் **${projects.length} திட்டப்பணிகள்** உள்ளன (${inFlight.length} செயலில்/திட்டமிடப்பட்டவை):\n\n` +
+              projects.map((p) => `• **${p.project_name}** (${p.project_code}): நிலை ${p.status.toUpperCase()} · இலக்கு தேதி: ${p.target_end_date || "N/A"}`).join("\n");
+          } else if (lang === "te") {
             answer = `సిస్టమ్‌లో మొత్తం **${projects.length} ప్రాజెక్ట్‌లు** ఉన్నాయి (${inFlight.length} యాక్టివ్/ప్లాన్ చేసినవి):\n\n` +
               projects.map((p) => `• **${p.project_name}** (${p.project_code}): స్థితి ${p.status.toUpperCase()} · ముగింపు తేదీ: ${p.target_end_date || "N/A"}`).join("\n");
           } else if (lang === "hi") {
@@ -463,7 +473,13 @@ export async function askAmiroIntelligenceDemo(
       case "invoices_overview": {
         const totalBilled = invoices.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0);
         const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-        if (lang === "te") {
+        if (lang === "ta") {
+          answer = `### இன்வாய்ஸ்கள் & பில்லிங் கண்ணோட்டம்\n\n` +
+            `• **மொத்தம் வழங்கப்பட்ட இன்வாய்ஸ்கள்:** ${invoices.length} (மொத்த மதிப்பு: ₹${totalBilled.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n` +
+            `• **பெறப்பட்ட வசூல்:** ₹${totalPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}\n` +
+            `• **நிலுவையில் உள்ள இன்வாய்ஸ்கள்:** ${overdueInvoices.length} (₹${totalOverdue.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n\n` +
+            invoices.map((inv) => `• **${inv.invoice_number}** (${clientMap.get(inv.client_id) || "வாடிக்கையாளர்"}): ₹${Number(inv.total_amount).toLocaleString("en-IN")} [${inv.status.toUpperCase()}]`).join("\n");
+        } else if (lang === "te") {
           answer = `### ఇన్వాయిస్‌లు & బిల్లింగ్ సమాచారం\n\n` +
             `• **మొత్తం జారీ చేసిన ఇన్వాయిస్‌లు:** ${invoices.length} (మొత్తం విలువ: ₹${totalBilled.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n` +
             `• **వచ్చిన వసూళ్లు:** ₹${totalPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}\n` +
@@ -661,7 +677,9 @@ export async function askAmiroIntelligenceDemo(
           /^(नमस्ते|నమస్కారం|నమస్తే|నమస్కారాలు|ನಮಸ್ಕಾರ|வணக்கம்)/i.test(question.trim()) ||
           /\b(kaise ho|kya haal|kya chal raha|ela unnav|ela unnaru|hegiddira|eppadi irukkinga)\b/i.test(question) ||
           /^(hi|hello|hey|नमस्ते|నమస్కారం|నమస్తే)$/i.test(question.trim());
-        const isIdentity = /\b(who are you|what can you do|who made you|tum kaun ho|kya kar sakte ho|nuvvu evaru|neeku emi telusu|tell me what you do)\b/i.test(question);
+        const isIdentity = /\b(who are you|what('s| is| are)? your name|what your name|your name|name please|what can you do|who made you|tum kaun ho|tera naam|naam kya hai|nuvvu evaru|neeku emi telusu|nee peru|un peyar|unga peru|tell me what you do)\b/i.test(question) ||
+          /^(who are you|what your name|what is your name|your name)$/i.test(question.trim()) ||
+          /(உன் பெயர்|உங்கள் பெயர்|నీ పేరు|तुम्हारा नाम|ನಿಮ್ಮ ಹೆಸರು)/.test(question);
         const isLocation = /\b(where are you|where r u|kahan ho|ekkada unnav|enga irukinga)\b/i.test(question);
         const isConversationalHelp = /\b(let me know|tell me|what do you want|kya chahiye|em kavali|how can you help)\b/i.test(question);
         const isOffTopic = /\b(joke|story|capital of|weather|recipe|sing|movie|president|prime minister|cricket|football|who is the president)\b/i.test(question);
@@ -691,34 +709,58 @@ export async function askAmiroIntelligenceDemo(
             answer = "Hello! 👋 Welcome. I'm your AI assistant. How can I help you today? Whenever you're ready, feel free to ask about our clients, invoices, active projects, quotations, or cashflow.";
           }
         } else if (isIdentity) {
-          if (lang === "hi") {
-            answer = "मैं **अमीरू इंटेलिजेंस (Amiro Intelligence)** हूँ — अमीरू टेक सॉल्यूशंस का बिज़नेस ऑपरेशन्स सहायक। जब भी आप पूछेंगे, मैं क्लाइंट्स, इनवॉइस, प्रोजेक्ट्स और कोटेशन का सटीक डेटा तुरंत उपलब्ध करा सकता हूँ।";
+          if (lang === "ta") {
+            answer = "நான் **அமிரோ இன்டலிஜென்ஸ் (Amiro Intelligence)** — அமிரோ டெக் சொல்யூஷன்ஸின் பிரத்யேக AI வணிக செயல்பாட்டு உதவியாளர். வாடிக்கையாளர்கள், இன்வாய்ஸ்கள், திட்டப்பணிகள் மற்றும் மேற்கோள்கள் பற்றிய துல்லியமான தரவுகளை நான் உங்களுக்கு உடனுக்குடன் வழங்குவேன்.";
           } else if (lang === "te") {
             answer = "నేను **అమీరో ఇంటెలిజెన్స్ (Amiro Intelligence)** — అమీరో టెక్ సొల్యూషన్స్ యొక్క బిజినెస్ ఆపరేషన్స్ అసిస్టెంట్. మీరు అడిగినప్పుడు క్లయింట్లు, ఇన్వాయిస్‌లు మరియు ప్రాజెక్ట్‌ల ఖచ్చితమైన డేటాను అందించగలను.";
+          } else if (lang === "hi") {
+            answer = "मैं **अमीरू इंटेलिजेंस (Amiro Intelligence)** हूँ — अमीरू टेक सॉल्यूशंस का बिज़नेस ऑपरेशन्स सहायक। जब भी आप पूछेंगे, मैं क्लाइंट्स, इनवॉइस, प्रोजेक्ट्स और कोटेशन का सटीक डेटा तुरंत उपलब्ध करा सकता हूँ।";
+          } else if (lang === "kn") {
+            answer = "ನಾನು **ಅಮಿರೋ ಇಂಟೆಲಿಜೆನ್ಸ್ (Amiro Intelligence)** — ಅಮಿರೋ ಟೆಕ್ ಸೊಲ್ಯೂಷನ್ಸ್‌ನ ವ್ಯಾಪಾರ ಕಾರ್ಯಾಚರಣೆಗಳ ಸಹಾಯಕ. ಗ್ರಾಹಕರು, ಇನ್‌ವಾಯ್ಸ್‌ಗಳು, ಪ್ರಾಜೆಕ್ಟ್‌ಗಳು ಮತ್ತು ಕೊಟೇಶನ್‌ಗಳ ನಿಖರ ಮಾಹಿತಿಯನ್ನು ನಾನು ನೀಡಬಲ್ಲೆ.";
+          } else if (lang === "ml") {
+            answer = "ഞാൻ **അമിറോ ഇന്റലിജൻസ് (Amiro Intelligence)** ആണ് — അമിറോ ടെക് സൊല്യൂഷൻസിന്റെ ബിസിനസ്സ് പ്രവർത്തന അസിസ്റ്റന്റ്.";
+          } else if (lang === "mr") {
+            answer = "मी **अमिरो इंटेलिजन्स (Amiro Intelligence)** आहे — अमिरो टेक सोल्युशन्सचा बिझनेस ऑपरेशन्स सहाय्यक.";
+          } else if (lang === "bn") {
+            answer = "আমি **আমিরো ইন্টেলিজেন্স (Amiro Intelligence)** — আমিরো টেক সলিউশনের ব্যবসায়িক অপারেশন সহকারী।";
+          } else if (lang === "gu") {
+            answer = "હું **અમિરો ઇન્ટેલિજન્સ (Amiro Intelligence)** છું — અમિરો ટેક સોલ્યુશન્સનો બિઝનેસ ઓપરેશન્સ સહાયક.";
+          } else if (lang === "ar") {
+            answer = "أنا **أميرو انتلجنس (Amiro Intelligence)** — المساعد الذكي لإدارة العمليات لشركة حلول أميرو التقنية.";
           } else {
             answer = "I am **Amiro Intelligence**, your AI business operations assistant for Amiro Tech Solutions. I can provide accurate data on our clients, invoices, delivery projects, and quotations whenever you ask.";
           }
         } else if (isLocation) {
-          if (lang === "hi") {
-            answer = "मैं आपके **अमीरू टेक सॉल्यूशंस प्लेटफ़ॉर्म** के भीतर ही मौजूद हूँ और आपके रीयल-टाइम व्यावसायिक रिकॉर्ड्स की निगरानी कर रहा हूँ।";
+          if (lang === "ta") {
+            answer = "நான் உங்கள் **அமிரோ டெக் சொல்யூஷன்ஸ் தளத்திலேயே** இயங்குகிறேன், உங்கள் நிறுவனத்தின் நேரலை வணிகப் பதிவுகளைக் கண்காணிக்கிறேன்.";
           } else if (lang === "te") {
             answer = "నేను మీ **అమీరో టెక్ సొల్యూషన్స్ ప్లాట్‌ఫారమ్** లోనే ఉన్నాను, మీ రియల్-టైమ్ వ్యాపార డేటాను పర్యవేక్షిస్తున్నాను.";
+          } else if (lang === "hi") {
+            answer = "मैं आपके **अमीरू टेक सॉल्यूशंस प्लेटफ़ॉर्म** के भीतर ही मौजूद हूँ और आपके रीयल-टाइम व्यावसायिक रिकॉर्ड्स की निगरानी कर रहा हूँ।";
+          } else if (lang === "kn") {
+            answer = "ನಾನು ನಿಮ್ಮ **ಅಮಿರೋ ಟೆಕ್ ಸೊಲ್ಯೂಷನ್ಸ್ ಪ್ಲಾಟ್‌ಫಾರ್ಮ್‌ನಲ್ಲಿಯೇ** ಇದ್ದೇನೆ, ನಿಮ್ಮ ನೈಜ-ಸಮಯದ ವ್ಯಾಪಾರ ದಾಖಲೆಗಳನ್ನು ಮೇಲ್ವಿಚಾರಣೆ ಮಾಡುತ್ತಿದ್ದೇನೆ.";
           } else {
             answer = "I am embedded directly inside your Amiro Tech Solutions platform, monitoring your real-time enterprise operations and verified records.";
           }
         } else if (isConversationalHelp) {
-          if (lang === "hi") {
-            answer = "मैं आपकी सहायता के लिए तैयार हूँ! आप मुझसे इस तरह के प्रश्न पूछ सकते हैं:\n• *'कौन से इनवॉइस ओवरड्यू हैं?'*\n• *'इस महीने का कुल राजस्व और लाभ दिखाओ'* \n• *'स्वीकृति के लिए लंबित कोटेशन कौन से हैं?'*\n• *'क्या कोई प्रोजेक्ट विलंबित है?'*";
+          if (lang === "ta") {
+            answer = "நான் உதவ தயாராக உள்ளேன்! நீங்கள் என்னிடம் கேட்கலாம்:\n• *'நிலுவையில் உள்ள இன்வாய்ஸ்கள் எவை?'*\n• *'இந்த மாத வருவாய் மற்றும் லாபம் காட்டு'* \n• *'ஒப்புதலுக்கு காத்திருக்கும் மேற்கோள்கள் எவை?'*\n• *'தாமதமான திட்டப்பணிகள் ஏதேனும் உள்ளதா?'*";
           } else if (lang === "te") {
             answer = "నేను సహాయం చేయడానికి సిద్ధంగా ఉన్నాను! మీరు నన్ను ఇలాంటి ప్రశ్నలు అడగవచ్చు:\n• *'ఏ ఇన్వాయిస్‌లు బకాయి ఉన్నాయి?'*\n• *'నెలవారీ ఆదాయం మరియు లాభం చూపించు'* \n• *'పెండింగ్ కొటేషన్లు ఏవి?'*\n• *'ఏవైనా ప్రాజెక్ట్‌లు ఆలస్యమయ్యాయా?'*";
+          } else if (lang === "hi") {
+            answer = "मैं आपकी सहायता के लिए तैयार हूँ! आप मुझसे इस तरह के प्रश्न पूछ सकते हैं:\n• *'कौन से इनवॉइस ओवरड्यू हैं?'*\n• *'इस महीने का कुल राजस्व और लाभ दिखाओ'* \n• *'स्वीकृति के लिए लंबित कोटेशन कौन से हैं?'*\n• *'क्या कोई प्रोजेक्ट विलंबित है?'*";
+          } else if (lang === "kn") {
+            answer = "ನಾನು ಸಹಾಯ ಮಾಡಲು ಸಿದ್ಧನಾಗಿದ್ದೇನೆ! ನೀವು ನನ್ನನ್ನು ಹೀಗೆ ಕೇಳಬಹುದು:\n• *'ಯಾವ ಇನ್‌ವಾಯ್ಸ್‌ಗಳು ಬಾಕಿ ಇವೆ?'*\n• *'ಈ ತಿಂಗಳ ಆದಾಯ ಮತ್ತು ಲಾಭ ತೋರಿಸಿ'*\n• *'ಯಾವ ಕೊಟೇಶನ್‌ಗಳು ಬಾಕಿ ಇವೆ?'*";
           } else {
             answer = "I am ready to help! You can ask me questions like:\n• *'Which invoices are overdue?'*\n• *'Show our monthly revenue and profit'* \n• *'Which quotations are waiting for approval?'*\n• *'Show delayed projects'* \n• *'Any open support tickets?'*\n\nAsk in English, Hindi, Telugu, Tamil, or your preferred language.";
           }
         } else if (isOffTopic) {
-          if (lang === "hi") {
-            answer = "मैं **अमीरू इंटेलिजेंस (Amiro Intelligence)** हूँ। मैं विशेष रूप से इस बिज़नेस ऑपरेशन्स प्लेटफ़ॉर्म के लिए अधिकृत हूँ। मैं केवल आपकी कंपनी के इनवॉइस, क्लाइंट्स, कोटेशन, प्रोजेक्ट्स और वित्तीय रिकॉर्ड्स से संबंधित प्रश्नों का उत्तर दे सकता हूँ। कृपया एप्लिकेशन से जुड़ा कोई प्रश्न पूछें।";
+          if (lang === "ta") {
+            answer = "நான் **அமிரோ இன்டலிஜென்ஸ் (Amiro Intelligence)**. நான் இந்த வணிக செயல்பாட்டு தளத்திற்காக மட்டுமே அங்கீகரிக்கப்பட்டுள்ளேன். நிறுவனத்தின் இன்வாய்ஸ்கள், வாடிக்கையாளர்கள், திட்டப்பணிகள் மற்றும் நிதி பதிவுகள் தொடர்பான கேள்விகளுக்கு மட்டுமே என்னால் பதிலளிக்க முடியும். வணிக பயன்பாடு தொடர்பான கேள்விகளைக் கேளுங்கள்.";
           } else if (lang === "te") {
             answer = "నేను **అమీరో ఇంటెలిజెన్స్ (Amiro Intelligence)**. నేను ఈ వ్యాపార కార్యకలాపాల అప్లికేషన్‌కు మాత్రమే అధీకృతుడిని. ఇన్వాయిస్‌లు, క్లయింట్లు, కొటేషన్లు మరియు ప్రాజెక్ట్‌లకు సంబంధించిన ప్రశ్నలకు మాత్రమే నేను సమాధానం ఇవ్వగలను.";
+          } else if (lang === "hi") {
+            answer = "मैं **अमीरू इंटेलिजेंस (Amiro Intelligence)** हूँ। मैं विशेष रूप से इस बिज़नेस ऑपरेशन्स प्लेटफ़ॉर्म के लिए अधिकृत हूँ। मैं केवल आपकी कंपनी के इनवॉइस, क्लाइंट्स, कोटेशन, प्रोजेक्ट्स और वित्तीय रिकॉर्ड्स से संबंधित प्रश्नों का उत्तर दे सकता हूँ। कृपया एप्लिकेशन से जुड़ा कोई प्रश्न पूछें।";
           } else {
             answer = "I am **Amiro Intelligence**, your dedicated business operations copilot. I am strictly authorized to assist with this application's business records (clients, invoices, quotations, projects, expenses, and financials). Please ask an application-related question.";
           }
@@ -737,10 +779,24 @@ export async function askAmiroIntelligenceDemo(
               `• **Active Proposals:** ${clientQuotes.length} quotations\n\n` +
               `You can review their complete commercial profile in the Clients module.`;
           } else {
-            if (lang === "hi") {
-              answer = "मैं अमीरू टेक सॉल्यूशंस ऑपरेशन्स में आपकी सहायता के लिए तैयार हूँ। कृपया बताएं यदि आप हमारे क्लाइंट्स, इनवॉइस, कोटेशन या प्रोजेक्ट्स से संबंधित कोई डेटा देखना चाहते हैं।";
+            if (lang === "ta") {
+              answer = "நான் அமிரோ டெக் சொல்யூஷன்ஸ் செயல்பாடுகளில் உதவ தயாராக உள்ளேன். எங்கள் வாடிக்கையாளர்கள், இன்வாய்ஸ்கள், செயலில் உள்ள திட்டப்பணிகள் அல்லது மேற்கோள்கள் குறித்து நீங்கள் என்ன பார்க்க விரும்புகிறீர்கள் என்று தயவுசெய்து தெரிவிக்கவும்.";
             } else if (lang === "te") {
               answer = "నేను అమీరో టెక్ సొల్యూషన్స్ కార్యకలాపాలలో సహాయం చేయడానికి ఇక్కడ ఉన్నాను. మన క్లయింట్లు, ఇన్వాయిస్‌లు, కొటేషన్లు లేదా ప్రాజెక్టుల వివరాలు కావాలంటే దయచేసి అడగండి.";
+            } else if (lang === "hi") {
+              answer = "मैं अमीरू टेक सॉल्यूशंस ऑपरेशन्स में आपकी सहायता के लिए तैयार हूँ। कृपया बताएं यदि आप हमारे क्लाइंट्स, इनवॉइस, कोटेशन या प्रोजेक्ट्स से संबंधित कोई डेटा देखना चाहते हैं।";
+            } else if (lang === "kn") {
+              answer = "ನಾನು ಅಮಿರೋ ಟೆಕ್ ಸೊಲ್ಯೂಷನ್ಸ್ ಕಾರ್ಯಾಚರಣೆಗಳಲ್ಲಿ ಸಹಾಯ ಮಾಡಲು ಇಲ್ಲಿದ್ದೇನೆ. ನಮ್ಮ ಗ್ರಾಹಕರು, ಇನ್‌ವಾಯ್ಸ್‌ಗಳು, ಪ್ರಾಜೆಕ್ಟ್‌ಗಳು ಅಥವಾ ಕೊಟೇಶನ್‌ಗಳ ಬಗ್ಗೆ ನೀವು ಏನನ್ನು ಪರಿಶೀಲಿಸಲು ಬಯಸುತ್ತೀರಿ ಎಂದು ದಯವಿಟ್ಟು ತಿಳಿಸಿ.";
+            } else if (lang === "ml") {
+              answer = "അമിറോ ടെക് സൊല്യൂഷൻസ് പ്രവർത്തനങ്ങളിൽ നിങ്ങളെ സഹായിക്കാൻ ഞാൻ ഇവിടെയുണ്ട്. ഞങ്ങളുടെ ക്ലയന്റുകൾ, ഇൻവോയ്സുകൾ അല്ലെങ്കിൽ പ്രോജക്റ്റുകൾ എന്നിവയെക്കുറിച്ച് എന്ത് വിവരമാണ് അറിയേണ്ടതെന്ന് ദയവായി വ്യക്തമാക്കൂ.";
+            } else if (lang === "mr") {
+              answer = "मी अमिरो टेक सोल्युशन्सच्या ऑपरेशन्समध्ये मदत करण्यासाठी येथे आहे. आमचे क्लायंट, इनव्हॉइस किंवा प्रोजेक्ट्सबद्दल तुम्हाला काय तपासायचे आहे ते कृपया सांगा.";
+            } else if (lang === "bn") {
+              answer = "আমি আমিরো টেক সলিউশন অপারেশনে আপনাকে সহায়তা করার জন্য এখানে আছি। আমাদের ক্লায়েন্ট, ইনভয়েস বা প্রকল্প সম্পর্কে আপনি কী জানতে চান দয়া করে জানান।";
+            } else if (lang === "gu") {
+              answer = "હું અમિરો ટેક સોલ્યુશન્સ ઓપરેશન્સમાં તમારી મદદ કરવા માટે અહીં છું. અમારા ગ્રાહકો, ઇન્વૉઇસેસ અથવા પ્રોજેક્ટ્સ વિશે તમે શું તપાસવા માંગો છો તે કૃપા કરીને જણાવો.";
+            } else if (lang === "ar") {
+              answer = "أنا هنا لمساعدتك في عمليات حلول أميرو التقنية. يُرجى إخباري بما ترغب في مراجعته بخصوص عملائنا أو فواتيرنا أو مشاريعنا أو عروض أسعارنا.";
             } else {
               answer = "I'm here to assist with Amiro Tech Solutions operations. Please let me know what you would like to check regarding our clients, invoices, active projects, or quotations.";
             }
