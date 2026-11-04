@@ -143,7 +143,7 @@ export default function CopilotPage() {
     try {
       if (!isConfigured) {
         // Local sandbox engine running live calculations against verified demo records
-        const result = await askAmiroIntelligenceDemo(question, conversation?.id);
+        const result = await askAmiroIntelligenceDemo(question, conversation?.id, conversation?.language);
         setConversation(result.conversation);
         setMessages((current) => {
           const withoutTemp = current.filter((m) => m.id !== tempUserId);
@@ -155,7 +155,7 @@ export default function CopilotPage() {
 
       const payload = await authorizedFetch("/api/copilot", {
         method: "POST",
-        body: JSON.stringify({ message: question, conversationId: conversation?.id })
+        body: JSON.stringify({ message: question, conversationId: conversation?.id, language: conversation?.language })
       }) as CopilotReply & { userMessage: CopilotMessage };
       setConversation(payload.conversation);
       setMessages((current) => {

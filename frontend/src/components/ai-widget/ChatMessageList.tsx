@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { ChatMessageItem } from "./ChatMessageItem";
 import { WelcomeScreen } from "./WelcomeScreen";
 import type { CopilotMessage } from "@/types/copilot";
+import type { WidgetLanguage } from "./types";
 
 interface ChatMessageListProps {
   messages: CopilotMessage[];
@@ -11,6 +12,7 @@ interface ChatMessageListProps {
   error: string | null;
   onRetry?: () => void;
   onSelectSuggestion: (question: string) => void;
+  language?: WidgetLanguage;
 }
 
 export function ChatMessageList({
@@ -18,7 +20,8 @@ export function ChatMessageList({
   isSending,
   error,
   onRetry,
-  onSelectSuggestion
+  onSelectSuggestion,
+  language
 }: ChatMessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -35,6 +38,7 @@ export function ChatMessageList({
         <WelcomeScreen
           onSelectSuggestion={onSelectSuggestion}
           disabled={isSending}
+          language={language}
         />
       ) : (
         <div className="ai-messages-flow">

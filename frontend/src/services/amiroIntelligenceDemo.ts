@@ -13,13 +13,31 @@ import type { CopilotRecord, CopilotMessage, CopilotConversation } from "@/types
 const DEMO_COPILOT_CONVERSATIONS_KEY = "business-ops-demo-copilot-conversations";
 const DEMO_COPILOT_MESSAGES_KEY = "business-ops-demo-copilot-messages";
 
+// Resilient memory cache to persist conversations across SSR, tests, and client sessions
+const inMemoryConversations: Map<string, CopilotConversation> = new Map();
+const inMemoryMessages: Map<string, CopilotMessage[]> = new Map();
+
 export function getDemoConversations(): CopilotConversation[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") {
+    return Array.from(inMemoryConversations.values());
+  }
   const raw = window.localStorage.getItem(DEMO_COPILOT_CONVERSATIONS_KEY);
-  return raw ? JSON.parse(raw) : [];
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        parsed.forEach((c: CopilotConversation) => inMemoryConversations.set(c.id, c));
+        return parsed;
+      }
+    } catch {
+      // Fall through to in-memory
+    }
+  }
+  return Array.from(inMemoryConversations.values());
 }
 
 export function saveDemoConversation(conv: CopilotConversation) {
+  inMemoryConversations.set(conv.id, conv);
   if (typeof window === "undefined") return;
   const list = getDemoConversations();
   const existingIdx = list.findIndex((c) => c.id === conv.id);
@@ -32,12 +50,22 @@ export function saveDemoConversation(conv: CopilotConversation) {
 }
 
 export function getDemoMessages(conversationId: string): CopilotMessage[] {
-  if (typeof window === "undefined") return [];
+  if (typeof window === "undefined") {
+    return inMemoryMessages.get(conversationId) || [];
+  }
   const raw = window.localStorage.getItem(`${DEMO_COPILOT_MESSAGES_KEY}-${conversationId}`);
-  return raw ? JSON.parse(raw) : [];
+  if (raw) {
+    try {
+      return JSON.parse(raw);
+    } catch {
+      // Fall through
+    }
+  }
+  return inMemoryMessages.get(conversationId) || [];
 }
 
 export function saveDemoMessages(conversationId: string, messages: CopilotMessage[]) {
+  inMemoryMessages.set(conversationId, messages);
   if (typeof window === "undefined") return;
   window.localStorage.setItem(`${DEMO_COPILOT_MESSAGES_KEY}-${conversationId}`, JSON.stringify(messages));
 }
@@ -108,9 +136,25 @@ export async function askAmiroIntelligenceDemo(
     activityService.getActivities().catch(() => [])
   ]);
 
+  // Determine sticky language:
+  // 1. Explicitly provided non-auto preferredLanguage
+  // 2. Existing locked conversation language
+  // 3. Language detected from current question
+  // 4. Default to 'en'
+  const existingConv = getDemoConversations().find((c) => c.id === convId);
+  const existingLanguage = existingConv?.language;
+
+  let lang: SupportedLanguage = "en";
+  if (preferredLanguage && preferredLanguage !== "auto") {
+    lang = preferredLanguage as SupportedLanguage;
+  } else if (existingLanguage && existingLanguage !== "auto") {
+    lang = existingLanguage as SupportedLanguage;
+  } else {
+    lang = detectQuestionLanguage(question);
+  }
+
   const clientMap = new Map(clients.map((c) => [c.id, c.company_name]));
   const intent = detectCopilotIntent(question);
-  const lang = detectQuestionLanguage(question, preferredLanguage);
 
   let answer = "";
   const records: CopilotRecord[] = [];
@@ -193,7 +237,8 @@ export async function askAmiroIntelligenceDemo(
         body: JSON.stringify({
           message: question,
           facts: businessFacts,
-          history: prior
+          history: prior,
+          language: lang
         }),
         signal: controller.signal
       });
@@ -396,10 +441,15 @@ export async function askAmiroIntelligenceDemo(
 
       case "active_projects": {
         if (projects.length === 0) {
-          answer = "There are currently no active projects recorded. Projects can be initialized from the Projects module.";
+          answer = lang === "te"
+            ? "ప్రస్తుతం సిస్టమ్‌లో యాక్టివ్ ప్రాజెక్ట్‌లు ఏవీ లేవు."
+            : (lang === "hi" ? "वर्तमान में कोई सक्रिय प्रोजेक्ट दर्ज नहीं है।" : "There are currently no active projects recorded.");
         } else {
           const inFlight = projects.filter((p) => p.status === "active" || p.status === "planned");
-          if (lang === "hi") {
+          if (lang === "te") {
+            answer = `సిస్టమ్‌లో మొత్తం **${projects.length} ప్రాజెక్ట్‌లు** ఉన్నాయి (${inFlight.length} యాక్టివ్/ప్లాన్ చేసినవి):\n\n` +
+              projects.map((p) => `• **${p.project_name}** (${p.project_code}): స్థితి ${p.status.toUpperCase()} · ముగింపు తేదీ: ${p.target_end_date || "N/A"}`).join("\n");
+          } else if (lang === "hi") {
             answer = `कुल **${projects.length} प्रोजेक्ट्स** हैं (${inFlight.length} सक्रिय/नियोजित):\n\n` +
               projects.map((p) => `• **${p.project_name}** (${p.project_code}): स्थिति ${p.status.toUpperCase()} · लक्ष्य तिथि: ${p.target_end_date || "N/A"}`).join("\n");
           } else {
@@ -413,48 +463,103 @@ export async function askAmiroIntelligenceDemo(
       case "invoices_overview": {
         const totalBilled = invoices.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0);
         const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-        answer = `### Invoices & Billing Overview\n\n` +
-          `• **Total Invoices Issued:** ${invoices.length} (Total Value: ₹${totalBilled.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n` +
-          `• **Total Realized Collections:** ₹${totalPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}\n` +
-          `• **Overdue Invoices:** ${overdueInvoices.length} (₹${totalOverdue.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n\n` +
-          invoices.map((inv) => `• **${inv.invoice_number}** (${clientMap.get(inv.client_id) || "Client"}): ₹${Number(inv.total_amount).toLocaleString("en-IN")} [${inv.status.toUpperCase()}]`).join("\n");
+        if (lang === "te") {
+          answer = `### ఇన్వాయిస్‌లు & బిల్లింగ్ సమాచారం\n\n` +
+            `• **మొత్తం జారీ చేసిన ఇన్వాయిస్‌లు:** ${invoices.length} (మొత్తం విలువ: ₹${totalBilled.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n` +
+            `• **వచ్చిన వసూళ్లు:** ₹${totalPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}\n` +
+            `• **బకాయి ఉన్న ఇన్వాయిస్‌లు:** ${overdueInvoices.length} (₹${totalOverdue.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n\n` +
+            invoices.map((inv) => `• **${inv.invoice_number}** (${clientMap.get(inv.client_id) || "క్లయింట్"}): ₹${Number(inv.total_amount).toLocaleString("en-IN")} [${inv.status.toUpperCase()}]`).join("\n");
+        } else if (lang === "hi") {
+          answer = `### इनवॉइस एवं बिलिंग अवलोकन\n\n` +
+            `• **कुल जारी इनवॉइस:** ${invoices.length} (कुल मूल्य: ₹${totalBilled.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n` +
+            `• **प्राप्त कुल भुगतान:** ₹${totalPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}\n` +
+            `• **बकाया इनवॉइस:** ${overdueInvoices.length} (₹${totalOverdue.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n\n` +
+            invoices.map((inv) => `• **${inv.invoice_number}** (${clientMap.get(inv.client_id) || "क्लाइंट"}): ₹${Number(inv.total_amount).toLocaleString("en-IN")} [${inv.status.toUpperCase()}]`).join("\n");
+        } else {
+          answer = `### Invoices & Billing Overview\n\n` +
+            `• **Total Invoices Issued:** ${invoices.length} (Total Value: ₹${totalBilled.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n` +
+            `• **Total Realized Collections:** ₹${totalPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}\n` +
+            `• **Overdue Invoices:** ${overdueInvoices.length} (₹${totalOverdue.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n\n` +
+            invoices.map((inv) => `• **${inv.invoice_number}** (${clientMap.get(inv.client_id) || "Client"}): ₹${Number(inv.total_amount).toLocaleString("en-IN")} [${inv.status.toUpperCase()}]`).join("\n");
+        }
         break;
       }
 
       case "quotations_overview": {
         const totalVal = quotations.reduce((s, q) => s + Number(q.total_amount || 0), 0);
-        answer = `### Quotations Pipeline Overview\n\n` +
-          `• **Total Quotations:** ${quotations.length} (Total Value: ₹${totalVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n` +
-          `• **Pending Approvals:** ${pendingQuotes.length}\n\n` +
-          quotations.map((q) => `• **${q.quotation_number}** for ${clientMap.get(q.client_id) || "Client"}: ₹${Number(q.total_amount).toLocaleString("en-IN")} [${q.status.toUpperCase()}]`).join("\n");
+        if (lang === "te") {
+          answer = `### కొటేషన్ల పైప్‌లైన్ సమాచారం\n\n` +
+            `• **మొత్తం కొటేషన్లు:** ${quotations.length} (మొత్తం విలువ: ₹${totalVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n` +
+            `• **ఆమోదం కోసం పెండింగ్‌లో ఉన్నవి:** ${pendingQuotes.length}\n\n` +
+            quotations.map((q) => `• **${q.quotation_number}** (${clientMap.get(q.client_id) || "క్లయింట్"}): ₹${Number(q.total_amount).toLocaleString("en-IN")} [${q.status.toUpperCase()}]`).join("\n");
+        } else if (lang === "hi") {
+          answer = `### कोटेशन पाइपलाइन अवलोकन\n\n` +
+            `• **कुल कोटेशन:** ${quotations.length} (कुल मूल्य: ₹${totalVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n` +
+            `• **लंबित कोटेशन:** ${pendingQuotes.length}\n\n` +
+            quotations.map((q) => `• **${q.quotation_number}** (${clientMap.get(q.client_id) || "क्लाइंट"}): ₹${Number(q.total_amount).toLocaleString("en-IN")} [${q.status.toUpperCase()}]`).join("\n");
+        } else {
+          answer = `### Quotations Pipeline Overview\n\n` +
+            `• **Total Quotations:** ${quotations.length} (Total Value: ₹${totalVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n` +
+            `• **Pending Approvals:** ${pendingQuotes.length}\n\n` +
+            quotations.map((q) => `• **${q.quotation_number}** for ${clientMap.get(q.client_id) || "Client"}: ₹${Number(q.total_amount).toLocaleString("en-IN")} [${q.status.toUpperCase()}]`).join("\n");
+        }
         break;
       }
 
       case "contracts_overview": {
-        answer = contracts.length === 0
-          ? "There are currently no active contracts recorded."
-          : `### Service Contracts & Agreements\n\n` +
-            `• **Total Contracts:** ${contracts.length} active\n` +
-            `• **Expiring Contracts:** ${expiringContracts.length}\n\n` +
-            contracts.map((c) => `• Contract **${c.contract_number}** (${clientMap.get(c.client_id) || "Client"}): Valid until ${c.end_date || "N/A"}`).join("\n");
+        if (contracts.length === 0) {
+          answer = lang === "te"
+            ? "ప్రస్తుతం సిస్టమ్‌లో క్రియాశీల ఒప్పందాలు ఏవీ లేవు."
+            : (lang === "hi" ? "वर्तमान में कोई सक्रिय अनुबंध दर्ज नहीं है।" : "There are currently no active contracts recorded.");
+        } else {
+          if (lang === "te") {
+            answer = `### సేవా ఒప్పందాలు (Contracts & SLAs)\n\n` +
+              `• **మొత్తం ఒప్పందాలు:** ${contracts.length} యాక్టివ్\n` +
+              `• **ముగియనున్న ఒప్పందాలు:** ${expiringContracts.length}\n\n` +
+              contracts.map((c) => `• ఒప్పందం **${c.contract_number}** (${clientMap.get(c.client_id) || "క్లయింట్"}): గడువు ${c.end_date || "N/A"}`).join("\n");
+          } else {
+            answer = `### Service Contracts & Agreements\n\n` +
+              `• **Total Contracts:** ${contracts.length} active\n` +
+              `• **Expiring Contracts:** ${expiringContracts.length}\n\n` +
+              contracts.map((c) => `• Contract **${c.contract_number}** (${clientMap.get(c.client_id) || "Client"}): Valid until ${c.end_date || "N/A"}`).join("\n");
+          }
+        }
         break;
       }
 
       case "today_activities": {
-        answer = activities.length === 0
-          ? "No activities or calls scheduled for today. You can log client communications from the Activities module."
-          : `### Today's Activities & Communication Log\n\n` +
-            `• **Total Scheduled/Logged:** ${activities.length} activity record(s)\n\n` +
-            activities.slice(0, 5).map((a) => `• [${a.activity_type.toUpperCase()}] ${a.subject || "Activity"} (${a.activity_date || "Today"})`).join("\n");
+        if (activities.length === 0) {
+          answer = lang === "te"
+            ? "ఈరోజు ఎలాంటి షెడ్యూల్ చేసిన సమావేశాలు లేదా కాల్స్ లేవు."
+            : (lang === "hi" ? "आज के लिए कोई गतिविधि या मीटिंग निर्धारित नहीं है।" : "No activities or calls scheduled for today.");
+        } else {
+          if (lang === "te") {
+            answer = `### ఈరోజు కార్యకలాపాల లాగ్\n\n• **మొత్తం రికార్డులు:** ${activities.length}\n\n` +
+              activities.slice(0, 5).map((a) => `• [${a.activity_type.toUpperCase()}] ${a.subject || "కార్యకలాపం"} (${a.activity_date || "ఈరోజు"})`).join("\n");
+          } else {
+            answer = `### Today's Activities & Communication Log\n\n` +
+              `• **Total Scheduled/Logged:** ${activities.length} activity record(s)\n\n` +
+              activities.slice(0, 5).map((a) => `• [${a.activity_type.toUpperCase()}] ${a.subject || "Activity"} (${a.activity_date || "Today"})`).join("\n");
+          }
+        }
         break;
       }
 
       case "client_followups": {
         const followups = clients.filter((c) => c.status === "lead" || c.status === "proposal_sent");
-        answer = followups.length === 0
-          ? "All client relationships are active and healthy. No urgent follow-up flags recorded."
-          : `Found **${followups.length} client account(s)** requiring commercial follow-up:\n\n` +
-            followups.map((c) => `• **${c.company_name}** (${c.status.toUpperCase()})`).join("\n");
+        if (followups.length === 0) {
+          answer = lang === "te"
+            ? "అన్ని క్లయింట్ ఖాతాల సంబంధాలు క్రియాశీలంగా ఉన్నాయి. ఎలాంటి అత్యవసర ఫాలోఅప్‌లు లేవు."
+            : (lang === "hi" ? "सभी ग्राहक खाते सक्रिय हैं। कोई तत्काल फॉलो-अप आवश्यक नहीं है।" : "All client relationships are active and healthy. No urgent follow-up flags recorded.");
+        } else {
+          if (lang === "te") {
+            answer = `ఫాలోఅప్ అవసరమైన **${followups.length} క్లయింట్ ఖాతాలు** గుర్తించబడ్డాయి:\n\n` +
+              followups.map((c) => `• **${c.company_name}** (${c.status.toUpperCase()})`).join("\n");
+          } else {
+            answer = `Found **${followups.length} client account(s)** requiring commercial follow-up:\n\n` +
+              followups.map((c) => `• **${c.company_name}** (${c.status.toUpperCase()})`).join("\n");
+          }
+        }
         break;
       }
 
@@ -508,7 +613,10 @@ export async function askAmiroIntelligenceDemo(
 
       case "pending_quotations": {
         const pipeVal = pendingQuotes.reduce((s, q) => s + Number(q.total_amount || 0), 0);
-        if (lang === "hi") {
+        if (lang === "te") {
+          answer = `పైప్‌లైన్‌లో **${pendingQuotes.length} పెండింగ్ కొటేషన్లు** ఉన్నాయి, మొత్తం విలువ **₹${pipeVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}**:\n\n` +
+            pendingQuotes.map((q) => `• **${q.quotation_number}**: ₹${Number(q.total_amount).toLocaleString("en-IN")} (${clientMap.get(q.client_id) || "క్లయింట్"})`).join("\n");
+        } else if (lang === "hi") {
           answer = `पाइपलाइन में **${pendingQuotes.length} लंबित कोटेशन** हैं, जिनका कुल मूल्य **₹${pipeVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}** है:\n\n` +
             pendingQuotes.map((q) => `• **${q.quotation_number}**: ₹${Number(q.total_amount).toLocaleString("en-IN")} (${clientMap.get(q.client_id) || "क्लाइंट"})`).join("\n");
         } else {
@@ -520,26 +628,39 @@ export async function askAmiroIntelligenceDemo(
 
       case "delayed_projects": {
         if (delayedProjects.length === 0) {
-          answer = lang === "hi"
-            ? "सभी सक्रिय प्रोजेक्ट्स समय पर चल रहे हैं। कोई भी प्रोजेक्ट विलंबित नहीं है।"
-            : "All active delivery engagements are tracking on schedule. No overdue deadlines identified.";
+          answer = lang === "te"
+            ? "అన్ని క్రియాశీల ప్రాజెక్ట్‌లు సమయానికి నడుస్తున్నాయి. ఆలస్యమైన ప్రాజెక్ట్‌లు ఏవీ లేవు."
+            : (lang === "hi"
+              ? "सभी सक्रिय प्रोजेक्ट्स समय पर चल रहे हैं। कोई भी प्रोजेक्ट विलंबित नहीं है।"
+              : "All active delivery engagements are tracking on schedule. No overdue deadlines identified.");
         } else {
-          answer = lang === "hi"
-            ? `**${delayedProjects.length} विलंबित प्रोजेक्ट्स** हैं:\n\n` + delayedProjects.map((p) => `• **${p.project_name}** (${p.project_code}): अंतिम तिथि थी ${p.target_end_date}`).join("\n")
-            : `Found **${delayedProjects.length} delayed project(s)**:\n\n` + delayedProjects.map((p) => `• **${p.project_name}** (${p.project_code}): Target was ${p.target_end_date}`).join("\n");
+          answer = lang === "te"
+            ? `మొత్తం **${delayedProjects.length} ఆలస్యమైన ప్రాజెక్ట్‌లు** ఉన్నాయి:\n\n` + delayedProjects.map((p) => `• **${p.project_name}** (${p.project_code}): చివరి తేదీ ${p.target_end_date}`).join("\n")
+            : (lang === "hi"
+              ? `**${delayedProjects.length} विलंबित प्रोजेक्ट्स** हैं:\n\n` + delayedProjects.map((p) => `• **${p.project_name}** (${p.project_code}): अंतिम तिथि थी ${p.target_end_date}`).join("\n")
+              : `Found **${delayedProjects.length} delayed project(s)**:\n\n` + delayedProjects.map((p) => `• **${p.project_name}** (${p.project_code}): Target was ${p.target_end_date}`).join("\n"));
         }
         break;
       }
 
       case "unresolved_tickets": {
-        answer = openTickets.length === 0
-          ? (lang === "hi" ? "सपोर्ट कतार पूरी तरह स्पष्ट है! कोई अनसुलझा टिकट नहीं है।" : "Support queues are completely clear! There are zero unresolved tickets.")
-          : `Found **${openTickets.length} open support ticket(s)**:\n\n` + openTickets.map((t) => `• [${t.priority.toUpperCase()}] ${t.ticket_number}: ${t.title}`).join("\n");
+        if (openTickets.length === 0) {
+          answer = lang === "te"
+            ? "సపోర్ట్ క్యూ పూర్తిగా క్లియర్‌గా ఉంది! ఎలాంటి ఓపెన్ టిక్కెట్లు లేవు."
+            : (lang === "hi" ? "सपोर्ट कतार पूरी तरह स्पष्ट है! कोई अनसुलझा टिकट नहीं है।" : "Support queues are completely clear! There are zero unresolved tickets.");
+        } else {
+          answer = lang === "te"
+            ? `సిస్టమ్‌లో **${openTickets.length} ఓపెన్ సపోర్ట్ టిక్కెట్లు** ఉన్నాయి:\n\n` + openTickets.map((t) => `• [${t.priority.toUpperCase()}] ${t.ticket_number}: ${t.title}`).join("\n")
+            : `Found **${openTickets.length} open support ticket(s)**:\n\n` + openTickets.map((t) => `• [${t.priority.toUpperCase()}] ${t.ticket_number}: ${t.title}`).join("\n");
+        }
         break;
       }
 
       default: {
-        const isGreeting = /^(hi|hello|hey|greetings|namaste|vanakkam|namaskar|hola)\b/i.test(question.trim()) || /^(hi|hello|hey)$/i.test(question.trim());
+        const isGreeting = /^(hi|hello|hey|greetings|namaste|vanakkam|namaskar|hola)\b/i.test(question.trim()) ||
+          /^(नमस्ते|నమస్కారం|నమస్తే|నమస్కారాలు|ನಮಸ್ಕಾರ|வணக்கம்)/i.test(question.trim()) ||
+          /\b(kaise ho|kya haal|kya chal raha|ela unnav|ela unnaru|hegiddira|eppadi irukkinga)\b/i.test(question) ||
+          /^(hi|hello|hey|नमस्ते|నమస్కారం|నమస్తే)$/i.test(question.trim());
         const isIdentity = /\b(who are you|what can you do|who made you|tum kaun ho|kya kar sakte ho|nuvvu evaru|neeku emi telusu|tell me what you do)\b/i.test(question);
         const isLocation = /\b(where are you|where r u|kahan ho|ekkada unnav|enga irukinga)\b/i.test(question);
         const isConversationalHelp = /\b(let me know|tell me|what do you want|kya chahiye|em kavali|how can you help)\b/i.test(question);
@@ -642,7 +763,8 @@ export async function askAmiroIntelligenceDemo(
   const conversation: CopilotConversation = {
     id: convId,
     title,
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
+    language: lang
   };
 
   saveDemoConversation(conversation);

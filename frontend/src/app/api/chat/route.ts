@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     const facts = body.facts || {};
     const history = Array.isArray(body.history) ? body.history : [];
 
-    const result = await generateCopilotAnswer(question, facts, history);
+    const result = await generateCopilotAnswer(question, facts, history, language);
 
     return NextResponse.json({
       reply: result.answer,

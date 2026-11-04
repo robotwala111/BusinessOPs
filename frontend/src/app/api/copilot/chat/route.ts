@@ -18,8 +18,9 @@ export async function POST(request: Request) {
     const question = body.message.trim();
     const facts = body.facts || {};
     const history = Array.isArray(body.history) ? body.history : [];
+    const language = typeof body.language === "string" ? body.language : undefined;
 
-    const result = await generateCopilotAnswer(question, facts, history);
+    const result = await generateCopilotAnswer(question, facts, history, language);
 
     return NextResponse.json({
       answer: result.answer,

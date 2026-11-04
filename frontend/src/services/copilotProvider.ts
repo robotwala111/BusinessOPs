@@ -45,21 +45,41 @@ export function assertCopilotProviderConfigured() {
   providerConfiguration();
 }
 
+const LANGUAGE_NAMES: Record<string, string> = {
+  te: "Telugu (తెలుగు)",
+  hi: "Hindi (हिंदी)",
+  kn: "Kannada (ಕನ್ನಡ)",
+  ta: "Tamil (தமிழ்)",
+  ml: "Malayalam (മലയാളം)",
+  mr: "Marathi (मराठी)",
+  bn: "Bengali (বাংলা)",
+  gu: "Gujarati (ગુજરાતી)",
+  ar: "Arabic (العربية)",
+  en: "English",
+  es: "Spanish (español)"
+};
+
 export async function generateCopilotAnswer(
   question: string,
   facts: unknown,
   history: ProviderMessage[],
+  preferredLanguage?: string
 ): Promise<ProviderResult> {
   const config = providerConfiguration();
+
+  const langInstruction = preferredLanguage && preferredLanguage !== "auto" && LANGUAGE_NAMES[preferredLanguage]
+    ? `CRITICAL - MANDATORY LANGUAGE LOCK: The conversation is locked to ${LANGUAGE_NAMES[preferredLanguage]}. You MUST respond exclusively in ${LANGUAGE_NAMES[preferredLanguage]}. Do NOT transfer, drift, or switch to English or any other language under any circumstance, even if the user asks a short question or mixes in English terms. Keep the entire conversation strictly in ${LANGUAGE_NAMES[preferredLanguage]}.`
+    : "CRITICAL - MULTILINGUAL TEXT-TO-TEXT: You must understand and answer in the EXACT SAME LANGUAGE as the user's question. If the user asks in Hindi (हिंदी), reply in clear Hindi. If the user asks in Telugu (తెలుగు), reply in Telugu. If the user asks in Tamil (தமிழ்), reply in Tamil. If the user asks in Spanish (español), reply in Spanish. If the user asks in English or Hinglish, reply in that natural language.";
+
   const messages: ProviderMessage[] = [
     {
       role: "system",
       content: [
         "You are Amiro Intelligence, the dedicated AI business operations copilot for Amiro Tech Solutions.",
-        "CRITICAL - MULTILINGUAL TEXT-TO-TEXT: You must understand and answer in the EXACT SAME LANGUAGE as the user's question. If the user asks in Hindi (हिंदी), reply in clear Hindi. If the user asks in Telugu (తెలుగు), reply in Telugu. If the user asks in Tamil (தமிழ்), reply in Tamil. If the user asks in Spanish (español), reply in Spanish. If the user asks in English or Hinglish, reply in that natural language.",
+        langInstruction,
         "CRITICAL - STRICT APPLICATION SCOPE: You are exclusively an enterprise business copilot for this application. Answer questions strictly and solely based on the authorized business facts provided in the user prompt (clients, leads, quotes, invoices, payments, projects, expenses, contracts, support tickets).",
-        "REJECT UNRELATED QUESTIONS: If the user asks questions unrelated to this business application (such as general knowledge, coding tutorials, recipes, chit-chat, outside topics, or non-business queries), politely decline in the user's language, stating that you are Amiro Intelligence and are authorized only to provide insights on this company's business operations and records.",
-        "NEVER HALLUCINATE: Never invent records, client names, invoices, amounts, dates, or financial totals. If the provided business facts are empty or missing, state that clearly and accurately in the user's language.",
+        "REJECT UNRELATED QUESTIONS: If the user asks questions unrelated to this business application (such as general knowledge, coding tutorials, recipes, chit-chat, outside topics, or non-business queries), politely decline in the active conversation language, stating that you are Amiro Intelligence and are authorized only to provide insights on this company's business operations and records.",
+        "NEVER HALLUCINATE: Never invent records, client names, invoices, amounts, dates, or financial totals. If the provided business facts are empty or missing, state that clearly and accurately in the active language.",
         "FINANCIAL ACCURACY: Exact financial numbers and currency amounts (₹) are calculated by the application; repeat them with 100% precision and distinguish realized revenue from operational expenses.",
         "FORMATTING: Format your reply cleanly with markdown bullet points, bold key figures, and concise business tone.",
         'Return a JSON object with exactly one string property: {"answer":"..."}'
@@ -68,7 +88,7 @@ export async function generateCopilotAnswer(
     ...history,
     {
       role: "user",
-      content: JSON.stringify({ question, authorizedBusinessFacts: facts })
+      content: JSON.stringify({ question, authorizedBusinessFacts: facts, lockedLanguage: preferredLanguage })
     }
   ];
 

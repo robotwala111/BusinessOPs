@@ -71,6 +71,7 @@ export function AIChatWindow({
         error={error}
         onRetry={onRetry}
         onSelectSuggestion={onSendMessage}
+        language={selectedLanguage}
       />
 
       <ChatComposer

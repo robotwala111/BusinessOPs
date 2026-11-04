@@ -35,6 +35,7 @@ export type CopilotConversation = {
   id: string;
   title: string;
   updated_at: string;
+  language?: string;
 };
 
 export type CopilotReply = {
