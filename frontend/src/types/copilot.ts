@@ -1,4 +1,11 @@
 export type CopilotIntent =
+  | "company_brief"
+  | "assistant_status"
+  | "clients_overview"
+  | "active_projects"
+  | "invoices_overview"
+  | "quotations_overview"
+  | "contracts_overview"
   | "today_activities"
   | "overdue_invoices"
   | "client_followups"

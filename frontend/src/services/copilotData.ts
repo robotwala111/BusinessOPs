@@ -169,6 +169,11 @@ async function runQuery(client: SupabaseClient, intent: CopilotIntent): Promise<
         `${String(item.title)} · ${names.get(String(item.client_id)) ?? "Client"} · ${item.status} · ${item.priority} · due ${item.due_date ?? "not set"}`));
       return { facts: { count: rows.length, tickets: records.map((item) => item.detail) }, records };
     }
+    default: {
+      const rows = await readRows(client.from("clients").select("id,company_name,status").limit(20), "clients");
+      const records = rows.map((c) => record("client", c.id, String(c.company_name), `/clients/${c.id}`, `Status: ${c.status}`));
+      return { facts: { company: "Amiro Tech Solutions", activeClients: rows.length }, records };
+    }
   }
 }
 

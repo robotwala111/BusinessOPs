@@ -5,6 +5,10 @@ describe("copilot read-only business tools", () => {
   it("maps supported questions to predefined intents", () => {
     expect(detectCopilotIntent("Show overdue invoices")).toBe("overdue_invoices");
     expect(detectCopilotIntent("Which projects are delayed?")).toBe("delayed_projects");
+    expect(detectCopilotIntent("can you please give me brief on amiro")).toBe("company_brief");
+    expect(detectCopilotIntent("what are you doing")).toBe("assistant_status");
+    expect(detectCopilotIntent("show all clients")).toBe("clients_overview");
+    expect(detectCopilotIntent("show active projects")).toBe("active_projects");
     expect(detectCopilotIntent("Tell me a joke")).toBeNull();
   });
 

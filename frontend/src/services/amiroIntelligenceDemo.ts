@@ -198,7 +198,35 @@ export async function askAmiroIntelligenceDemo(
   }
 
   // Populate records shortcut cards based on identified intent
-  if (intent === "overdue_invoices" || /invoice|बिल|चालान/i.test(question)) {
+  if (intent === "company_brief" || /amiro/i.test(question)) {
+    records.push({
+      id: "dash-brief",
+      entity: "client",
+      label: "Amiro Tech Solutions – Executive Dashboard",
+      href: "/dashboard",
+      detail: `${clients.length} accounts · ₹${payments.reduce((s, p) => s + Number(p.amount), 0).toLocaleString("en-IN")} realized`
+    });
+  } else if (intent === "clients_overview" || /client|ग्राहक|క్లయింట్/i.test(question)) {
+    clients.slice(0, 3).forEach((c) => {
+      records.push({
+        id: c.id,
+        entity: "client",
+        label: c.company_name,
+        href: `/clients/${c.id}`,
+        detail: `${c.industry || "Enterprise"} · Status: ${c.status}`
+      });
+    });
+  } else if (intent === "active_projects" || /project|प्रोजेक्ट|ప్రాజెక్ట్/i.test(question)) {
+    projects.slice(0, 3).forEach((p) => {
+      records.push({
+        id: p.id,
+        entity: "project",
+        label: `${p.project_code} – ${p.project_name}`,
+        href: `/projects`,
+        detail: `Target: ${p.target_end_date || "N/A"} · Status: ${p.status}`
+      });
+    });
+  } else if (intent === "overdue_invoices" || /invoice|बिल|चालान/i.test(question)) {
     overdueInvoices.forEach((inv) => {
       records.push({
         id: inv.id,
@@ -246,6 +274,156 @@ export async function askAmiroIntelligenceDemo(
   } else {
     // Built-in Multilingual Grounded Synthesis Engine (Hindi, Telugu, Tamil, Spanish, Hinglish, English)
     switch (intent) {
+      case "company_brief": {
+        const activeClients = clients.filter((c) => c.status === "active");
+        const realizedRev = payments.reduce((s, p) => s + Number(p.amount), 0);
+        const activeProjs = projects.filter((p) => p.status === "active");
+
+        if (lang === "hi") {
+          answer = `### अमीरू टेक सॉल्यूशंस (Amiro Tech Solutions) — कंपनी परिचय एवं बिज़नेस सारांश\n\n` +
+            `**अमीरू टेक सॉल्यूशंस** एक प्रमुख एंटरप्राइज टेक्नोलॉजी सॉल्यूशंस एवं बिज़नेस ऑपरेशन्स प्रदाता है। हम आधुनिक डिजिटल इन्फ्रास्ट्रक्चर, कस्टम सॉफ्टवेयर और क्लाउड समाधान प्रदान करते हैं।\n\n` +
+            `**लाइव ऑपरेशन्स स्थिति:**\n` +
+            `• **क्लाइंट पोर्टफोलियो:** कुल **${clients.length} क्लाइंट खाते** (${activeClients.length} सक्रिय खाते, जैसे ${clients.map((c) => c.company_name).slice(0, 2).join(", ") || "प्रमुख ग्राहक"})\n` +
+            `• **प्राप्त कुल राजस्व:** **₹${realizedRev.toLocaleString("en-IN", { minimumFractionDigits: 2 })}** प्राप्त भुगतान\n` +
+            `• **सक्रिय डिलीवरी:** **${activeProjs.length} चालू प्रोजेक्ट्स** समय-सीमा पर गतिमान\n` +
+            `• **पाइपलाइन कोटेशन:** **${pendingQuotes.length} कोटेशन** समीक्षा और अनुमोदन में\n` +
+            `• **बकाया इनवॉइस:** **${overdueInvoices.length} ओवरड्यू इनवॉइस** (कुल बकाया ₹${totalOverdue.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n` +
+            `• **सपोर्ट व अनुबंध:** **${contracts.length} सेवा अनुबंध** और **${openTickets.length}** खुले सपोर्ट टिकट\n\n` +
+            `आप मुझसे किसी भी विशिष्ट क्लाइंट, इनवॉइस या प्रोजेक्ट के बारे में विस्तार से पूछ सकते हैं।`;
+        } else if (lang === "te") {
+          answer = `### అమీరో టెక్ సొల్యూషన్స్ (Amiro Tech Solutions) — కంపెనీ వివరాలు\n\n` +
+            `**అమీరో టెక్ సొల్యూషన్స్** అత్యాధునిక ఎంటర్‌ప్రైజ్ సాఫ్ట్‌వేర్ మరియు వ్యాపార నిర్వహణ పరిష్కారాలను అందించే ప్రముఖ సంస్థ.\n\n` +
+            `**ప్రస్తుత వ్యాపార స్థితి:**\n` +
+            `• **మొత్తం క్లయింట్లు:** **${clients.length} క్లయింట్ ఖాతాలు** (${activeClients.length} యాక్టివ్)\n` +
+            `• **వచ్చిన రాబడి:** **₹${realizedRev.toLocaleString("en-IN", { minimumFractionDigits: 2 })}**\n` +
+            `• **ప్రస్తుత ప్రాజెక్టులు:** **${activeProjs.length} ప్రాజెక్ట్‌లు** నిర్మాణంలో ఉన్నాయి\n` +
+            `• **కొటేషన్లు:** **${pendingQuotes.length} కొటేషన్లు** పెండింగ్‌లో ఉన్నాయి\n` +
+            `• **బకాయిలు:** **${overdueInvoices.length} బకాయి బిల్లులు** (మొత్తం ₹${totalOverdue.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n\n` +
+            `మీరు ఏ ప్రాజెక్ట్ లేదా ఇన్వాయిస్ గురించి అయినా వివరాలు అడగవచ్చు.`;
+        } else {
+          answer = `### Amiro Tech Solutions — Enterprise Operations Briefing\n\n` +
+            `**Amiro Tech Solutions** is a premier technology services and enterprise business operations firm specializing in mission-critical business platforms, digital operations management, and secure cloud integrations.\n\n` +
+            `**Live Operational Footprint:**\n` +
+            `• **Client Portfolio:** **${clients.length} registered accounts** (${activeClients.length} actively engaged: ${clients.map((c) => c.company_name).slice(0, 2).join(", ") || "Active accounts"})\n` +
+            `• **Realized Gross Revenue:** **₹${realizedRev.toLocaleString("en-IN", { minimumFractionDigits: 2 })}** in verified collections\n` +
+            `• **Delivery Pipeline:** **${activeProjs.length} active delivery projects** tracking milestones on schedule\n` +
+            `• **Commercial Pipeline:** **${pendingQuotes.length} quotations** currently awaiting conversion\n` +
+            `• **Credit Standing:** **${overdueInvoices.length} overdue invoices** (₹${totalOverdue.toLocaleString("en-IN", { minimumFractionDigits: 2 })} balance due)\n` +
+            `• **SLA Commitments:** **${contracts.length} active maintenance contracts** with **${openTickets.length} open tickets**\n\n` +
+            `You can request deep-dive analytics for any client account, invoice ledger, project schedule, or quotation proposal.`;
+        }
+        break;
+      }
+
+      case "assistant_status": {
+        if (lang === "hi") {
+          answer = `मैं **अमीरू इंटेलिजेंस (Amiro Intelligence)** हूँ। मैं वर्तमान में आपके पूरे बिज़नेश ऑपरेशन्स प्लेटफ़ॉर्म की निरंतर निगरानी कर रहा हूँ:\n\n` +
+            `• **लेजर और इनवॉइस:** कुल ${invoices.length} इनवॉइस और पेमेंट प्राप्तियों का मिलान\n` +
+            `• **डिलीवरी ट्रैकिंग:** ${projects.length} प्रोजेक्ट्स के माइलस्टोन और डेडलाइन अलर्ट्स\n` +
+            `• **कोटेशन और सौदे:** ${quotations.length} कोटेशन का पाइपलाइन विश्लेषण\n` +
+            `• **सपोर्ट व SLA:** ${openTickets.length} सपोर्ट टिकट्स और सेवा अनुबंधों की स्थिति\n\n` +
+            `मैं किसी भी रिपोर्ट, वित्तीय आंकड़े या प्रोजेक्ट स्थिति का तुरंत उत्तर देने के लिए तैयार हूँ।`;
+        } else if (lang === "te") {
+          answer = `నేను **అమీరో ఇంటెలిజెన్స్ (Amiro Intelligence)**. ప్రస్తుతం మీ కంపెనీ యొక్క లైవ్ బిజినెస్ కార్యకలాపాలను పర్యవేక్షిస్తున్నాను:\n\n` +
+            `• **ఇన్వాయిస్‌లు:** ${invoices.length} ఇన్వాయిస్‌ల రియల్-టైమ్ సమాచారం\n` +
+            `• **ప్రాజెక్టులు:** ${projects.length} ప్రాజెక్ట్‌ల మైల్‌స్టోన్‌లు\n` +
+            `• **కొటేషన్లు:** ${quotations.length} కొటేషన్ల స్థితి\n\n` +
+            `మీకు అవసరమైన ఏ సమాచారమైనా నేను వెంటనే విశ్లేషించి అందించగలను.`;
+        } else {
+          answer = `I am **Amiro Intelligence**, actively monitoring your live enterprise operational data streams.\n\n` +
+            `**What I am tracking right now:**\n` +
+            `• **Receivables Ledger:** Tracking ${invoices.length} issued billings and verified payment collections.\n` +
+            `• **Project Delivery:** Monitoring ${projects.length} project engagements and delivery milestones.\n` +
+            `• **Commercial Opportunities:** Analyzing ${quotations.length} quotations across ${clients.length} client accounts.\n` +
+            `• **Service Quality & SLA:** Monitoring support ticket queues and contract maintenance renewals.\n\n` +
+            `How can I assist your business analysis right now?`;
+        }
+        break;
+      }
+
+      case "clients_overview": {
+        const activeCount = clients.filter((c) => c.status === "active").length;
+        if (clients.length === 0) {
+          answer = "There are currently no clients registered in the system. You can onboard new clients from the Clients module.";
+        } else {
+          if (lang === "hi") {
+            answer = `सिस्टम में कुल **${clients.length} क्लाइंट्स** दर्ज हैं (**${activeCount} सक्रिय**):\n\n` +
+              clients.map((c) => `• **${c.company_name}** (${c.industry || "General"}): स्थिति ${c.status.toUpperCase()}`).join("\n");
+          } else if (lang === "te") {
+            answer = `సిస్టమ్‌లో మొత్తం **${clients.length} క్లయింట్లు** ఉన్నారు (**${activeCount} యాక్టివ్**):\n\n` +
+              clients.map((c) => `• **${c.company_name}** (${c.industry || "General"}): స్థితి ${c.status}`).join("\n");
+          } else {
+            answer = `There are **${clients.length} client account(s)** registered in the platform (**${activeCount} active**):\n\n` +
+              clients.map((c) => `• **${c.company_name}** [${c.industry || "Enterprise"} · Status: ${c.status.toUpperCase()}]`).join("\n");
+          }
+        }
+        break;
+      }
+
+      case "active_projects": {
+        if (projects.length === 0) {
+          answer = "There are currently no active projects recorded. Projects can be initialized from the Projects module.";
+        } else {
+          const inFlight = projects.filter((p) => p.status === "active" || p.status === "planned");
+          if (lang === "hi") {
+            answer = `कुल **${projects.length} प्रोजेक्ट्स** हैं (${inFlight.length} सक्रिय/नियोजित):\n\n` +
+              projects.map((p) => `• **${p.project_name}** (${p.project_code}): स्थिति ${p.status.toUpperCase()} · लक्ष्य तिथि: ${p.target_end_date || "N/A"}`).join("\n");
+          } else {
+            answer = `There are **${projects.length} project engagement(s)** in the system (${inFlight.length} active/planned):\n\n` +
+              projects.map((p) => `• **${p.project_name}** (${p.project_code}): Status [${p.status.toUpperCase()}] · Target End: ${p.target_end_date || "N/A"}`).join("\n");
+          }
+        }
+        break;
+      }
+
+      case "invoices_overview": {
+        const totalBilled = invoices.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0);
+        const totalPaid = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+        answer = `### Invoices & Billing Overview\n\n` +
+          `• **Total Invoices Issued:** ${invoices.length} (Total Value: ₹${totalBilled.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n` +
+          `• **Total Realized Collections:** ₹${totalPaid.toLocaleString("en-IN", { minimumFractionDigits: 2 })}\n` +
+          `• **Overdue Invoices:** ${overdueInvoices.length} (₹${totalOverdue.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n\n` +
+          invoices.map((inv) => `• **${inv.invoice_number}** (${clientMap.get(inv.client_id) || "Client"}): ₹${Number(inv.total_amount).toLocaleString("en-IN")} [${inv.status.toUpperCase()}]`).join("\n");
+        break;
+      }
+
+      case "quotations_overview": {
+        const totalVal = quotations.reduce((s, q) => s + Number(q.total_amount || 0), 0);
+        answer = `### Quotations Pipeline Overview\n\n` +
+          `• **Total Quotations:** ${quotations.length} (Total Value: ₹${totalVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })})\n` +
+          `• **Pending Approvals:** ${pendingQuotes.length}\n\n` +
+          quotations.map((q) => `• **${q.quotation_number}** for ${clientMap.get(q.client_id) || "Client"}: ₹${Number(q.total_amount).toLocaleString("en-IN")} [${q.status.toUpperCase()}]`).join("\n");
+        break;
+      }
+
+      case "contracts_overview": {
+        answer = contracts.length === 0
+          ? "There are currently no active contracts recorded."
+          : `### Service Contracts & Agreements\n\n` +
+            `• **Total Contracts:** ${contracts.length} active\n` +
+            `• **Expiring Contracts:** ${expiringContracts.length}\n\n` +
+            contracts.map((c) => `• Contract **${c.contract_number}** (${clientMap.get(c.client_id) || "Client"}): Valid until ${c.end_date || "N/A"}`).join("\n");
+        break;
+      }
+
+      case "today_activities": {
+        answer = activities.length === 0
+          ? "No activities or calls scheduled for today. You can log client communications from the Activities module."
+          : `### Today's Activities & Communication Log\n\n` +
+            `• **Total Scheduled/Logged:** ${activities.length} activity record(s)\n\n` +
+            activities.slice(0, 5).map((a) => `• [${a.activity_type.toUpperCase()}] ${a.subject || "Activity"} (${a.activity_date || "Today"})`).join("\n");
+        break;
+      }
+
+      case "client_followups": {
+        const followups = clients.filter((c) => c.status === "lead" || c.status === "proposal_sent");
+        answer = followups.length === 0
+          ? "All client relationships are active and healthy. No urgent follow-up flags recorded."
+          : `Found **${followups.length} client account(s)** requiring commercial follow-up:\n\n` +
+            followups.map((c) => `• **${c.company_name}** (${c.status.toUpperCase()})`).join("\n");
+        break;
+      }
+
       case "overdue_invoices": {
         if (overdueInvoices.length === 0) {
           if (lang === "hi") {
@@ -370,26 +548,34 @@ export async function askAmiroIntelligenceDemo(
             answer = "I am **Amiro Intelligence**, your dedicated business operations copilot. I am strictly authorized to assist with this application's business records (clients, invoices, quotations, projects, expenses, and financials). Please ask an application-related question.";
           }
         } else {
-          // General business pulse summary
-          if (lang === "hi") {
-            answer = `### अमीरू इंटेलिजेंस — बिज़नेस ऑपरेशन्स सारांश\n\n` +
-              `• **सक्रिय क्लाइंट्स:** ${clients.filter((c) => c.status === "active").length} खाते\n` +
-              `• **सक्रिय प्रोजेक्ट्स:** ${projects.filter((p) => p.status === "active").length} प्रोजेक्ट्स कार्य प्रगति पर\n` +
-              `• **कुल प्राप्त राजस्व:** ₹${payments.reduce((s, p) => s + Number(p.amount), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}\n` +
-              `• **लंबित कोटेशन:** ${pendingQuotes.length} कोटेशन\n\n` +
-              `आप मुझसे इनवॉइस, कोटेशन, प्रोजेक्ट्स या वित्तीय स्थिति के बारे में किसी भी भाषा में पूछ सकते हैं।`;
-          } else if (lang === "te") {
-            answer = `### అమీరో ఇంటెలిజెన్స్ — బిజినెస్ ఆపరేషన్స్ సారాంశం\n\n` +
-              `• **యాక్టివ్ క్లయింట్లు:** ${clients.filter((c) => c.status === "active").length}\n` +
-              `• **ప్రస్తుత ప్రాజెక్టులు:** ${projects.filter((p) => p.status === "active").length}\n` +
-              `• **రాబడి:** ₹${payments.reduce((s, p) => s + Number(p.amount), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}`;
+          // Check if question mentions any client name specifically
+          const matchedClient = clients.find((c) => question.toLowerCase().includes(c.company_name.toLowerCase()));
+          if (matchedClient) {
+            const clientInvoices = invoices.filter((i) => i.client_id === matchedClient.id);
+            const clientProjects = projects.filter((p) => p.client_id === matchedClient.id);
+            const clientQuotes = quotations.filter((q) => q.client_id === matchedClient.id);
+            answer = `### Client 360 Summary: ${matchedClient.company_name}\n\n` +
+              `• **Industry:** ${matchedClient.industry || "Enterprise"}\n` +
+              `• **Commercial Status:** ${matchedClient.status.toUpperCase()}\n` +
+              `• **Invoices Issued:** ${clientInvoices.length} (${clientInvoices.filter((i) => i.status === "paid").length} settled)\n` +
+              `• **Delivery Engagements:** ${clientProjects.length} projects\n` +
+              `• **Active Proposals:** ${clientQuotes.length} quotations\n\n` +
+              `You can review their complete commercial profile in the Clients module.`;
           } else {
-            answer = `### Amiro Intelligence — Operational Pulse\n\n` +
-              `• **Clients Portfolio:** ${clients.length} accounts (${clients.filter((c) => c.status === "active").length} active)\n` +
-              `• **Active Deliveries:** ${projects.filter((p) => p.status === "active").length} projects in flight\n` +
+            // Dynamic conversational response addressing the user's specific text
+            answer = `### Amiro Intelligence Assistant\n\n` +
+              `I processed your query regarding: *"${question}"*.\n\n` +
+              `**Current Verified Records:**\n` +
+              `• **Active Accounts:** ${clients.filter((c) => c.status === "active").length} clients actively engaged\n` +
+              `• **Delivery Pipeline:** ${projects.filter((p) => p.status === "active").length} active projects\n` +
               `• **Realized Revenue:** ₹${payments.reduce((s, p) => s + Number(p.amount), 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}\n` +
-              `• **Pending Quotations:** ${pendingQuotes.length} quotes awaiting conversion\n\n` +
-              `You can ask me questions about invoices, payments, delayed projects, or contracts in any language (English, Hindi, Telugu, Tamil, etc.).`;
+              `• **Receivables Status:** ${overdueInvoices.length === 0 ? "All client invoices paid or within credit terms" : `${overdueInvoices.length} overdue invoices awaiting collection`}\n\n` +
+              `You can ask targeted questions such as:\n` +
+              `• *"Give me a brief on Amiro"*\n` +
+              `• *"What are you doing?"*\n` +
+              `• *"Show all clients"*\n` +
+              `• *"Show active projects"*\n` +
+              `• *"Which invoices are overdue?"*`;
           }
         }
         break;
