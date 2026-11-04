@@ -37,4 +37,18 @@ describe("Copilot provider boundary", () => {
     await expect(generateCopilotAnswer("Show overdue invoices", {}, []))
       .rejects.toThrow("invalid structured answer");
   });
+
+  it("accepts direct text/markdown responses from Qwen and open-weight models", async () => {
+    vi.stubEnv("AI_API_KEY", "ollama");
+    vi.stubEnv("AI_MODEL", "qwen2.5:1.5b");
+    vi.stubEnv("AI_BASE_URL", "http://localhost:11434/v1");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: "नमस्ते! वर्तमान में कोई भी इनवॉइस ओवरड्यू नहीं है।" } }],
+      usage: { prompt_tokens: 80, completion_tokens: 25 }
+    }), { status: 200 })));
+
+    const res = await generateCopilotAnswer("ओवरड्यू इनवॉइस दिखाओ", {}, []);
+    expect(res.answer).toBe("नमस्ते! वर्तमान में कोई भी इनवॉइस ओवरड्यू नहीं है।");
+    expect(res.model).toBe("qwen2.5:1.5b");
+  });
 });

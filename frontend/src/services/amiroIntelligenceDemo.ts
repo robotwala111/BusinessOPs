@@ -313,8 +313,41 @@ export async function askAmiroIntelligenceDemo(
       }
 
       default: {
-        // If question is completely outside business scope (e.g. general knowledge, jokes, outside topics)
-        if (/\b(joke|story|capital of|weather|recipe|sing|movie|president|who is)\b/i.test(question)) {
+        const isGreeting = /^(hi|hello|hey|greetings|namaste|vanakkam|namaskar|hola)\b/i.test(question.trim()) || /^(hi|hello|hey)$/i.test(question.trim());
+        const isIdentity = /\b(who are you|what can you do|who made you|tum kaun ho|kya kar sakte ho|nuvvu evaru|neeku emi telusu|tell me what you do)\b/i.test(question);
+        const isLocation = /\b(where are you|where r u|kahan ho|ekkada unnav|enga irukinga)\b/i.test(question);
+        const isConversationalHelp = /\b(let me know|tell me|what do you want|kya chahiye|em kavali|how can you help)\b/i.test(question);
+        const isOffTopic = /\b(joke|story|capital of|weather|recipe|sing|movie|president|prime minister|cricket|football|who is the president)\b/i.test(question);
+
+        if (isGreeting || isIdentity) {
+          if (lang === "hi") {
+            answer = "नमस्ते! मैं **अमीरू इंटेलिजेंस (Amiro Intelligence)** हूँ — आपका समर्पित बिज़नेस ऑपरेशन्स सहायक।\n\nमैं आपकी कंपनी के लाइव रिकॉर्ड्स का विश्लेषण करके इन विषयों पर सटीक जानकारी दे सकता हूँ:\n• **इनवॉइस और बकाया:** ओवरड्यू बिल, पेमेंट कलेक्शन और अनपेड बैलेंस\n• **राजस्व और खर्च:** कुल प्राप्त राजस्व, मासिक परिचालन खर्च और शुद्ध लाभ\n• **कोटेशन और पाइपलाइन:** लंबित कोटेशन और उनकी स्वीकृति स्थिति\n• **प्रोजेक्ट्स और डिलीवरी:** सक्रिय प्रोजेक्ट्स और विलंबित डेडलाइन्स\n• **सपोर्ट और अनुबंध:** ओपन टिकट्स और मेंटेनेंस कॉन्ट्रैक्ट्स\n\nआप मुझसे हिंदी, अंग्रेज़ी, तेलुगु या तमिल में कोई भी व्यावसायिक प्रश्न पूछ सकते हैं।";
+          } else if (lang === "te") {
+            answer = "నమస్కారం! నేను **అమీరో ఇంటెలిజెన్స్ (Amiro Intelligence)** — మీ వ్యాపార కార్యకలాపాల AI అసిస్టెంట్.\n\nనేను మీ వ్యాపార సమాచారాన్ని విశ్లేషించగలను:\n• **ఇన్వాయిస్‌లు & బకాయిలు:** పెండింగ్ బిల్లులు మరియు చెల్లింపుల స్థితి\n• **ఆదాయం & లాభం:** మొత్తం రాబడి, నెలవారీ ఖర్చులు, నికర లాభం\n• **కొటేషన్లు & ప్రాజెక్ట్‌లు:** పెండింగ్‌లో ఉన్న ప్రతిపాదనలు, ఆలస్యమైన ప్రాజెక్ట్‌లు\n• **సపోర్ట్ టికెట్లు:** ఓపెన్ టికెట్లు\n\nమీరు నన్ను తెలుగు, హిందీ లేదా ఇంగ్లీషులో ఏ వ్యాపార ప్రశ్నైనా అడగవచ్చు!";
+          } else if (lang === "ta") {
+            answer = "வணக்கம்! நான் **அமீரோ இன்டலிஜென்ஸ் (Amiro Intelligence)** — உங்கள் வணிக செயல்பாட்டு AI உதவியாளர்.\n\nஇன்வாய்ஸ்கள், நிலுவைத் தொகைகள், மாதாந்திர வருவாய், திட்டப்பணிகள் மற்றும் மேற்கோள்கள் குறித்த கேள்விகளை நீங்கள் எந்த மொழியிலும் என்னிடம் கேட்கலாம்.";
+          } else if (lang === "es") {
+            answer = "¡Hola! Soy **Amiro Intelligence**, tu asistente de operaciones comerciales para Amiro Tech Solutions.\n\nPuedo ayudarte a consultar:\n• Facturas vencidas y cobros pendientes\n• Ingresos mensuales y gastos operativos\n• Cotizaciones pendientes y proyectos\n\nPuedes preguntarme en cualquier idioma.";
+          } else {
+            answer = "Hello! I am **Amiro Intelligence**, the dedicated AI business operations copilot for Amiro Tech Solutions.\n\nI monitor your enterprise operations in real time and can answer questions on:\n• **Invoices & Receivables:** Overdue balances, collection velocity, unpaid clients.\n• **Financials & Margins:** Gross revenue, monthly operational expenses, net profit.\n• **Quotations & Pipeline:** Active proposals, pending approvals, pipeline value.\n• **Engagements & Projects:** Milestone timelines, delayed schedules, assigned leads.\n• **Support & SLAs:** Open customer tickets, maintenance contracts, SLA commitments.\n\nFeel free to ask your question in any language (English, Hindi, Telugu, Tamil, etc.).";
+          }
+        } else if (isLocation) {
+          if (lang === "hi") {
+            answer = "मैं आपके **अमीरू टेक सॉल्यूशंस प्लेटफ़ॉर्म** के भीतर ही मौजूद हूँ और आपके रीयल-टाइम व्यावसायिक रिकॉर्ड्स की निगरानी कर रहा हूँ।";
+          } else if (lang === "te") {
+            answer = "నేను మీ **అమీరో టెక్ సొల్యూషన్స్ ప్లాట్‌ఫారమ్** లోనే ఉన్నాను, మీ రియల్-టైమ్ వ్యాపార డేటాను పర్యవేక్షిస్తున్నాను.";
+          } else {
+            answer = "I am embedded directly inside your Amiro Tech Solutions platform, monitoring your real-time enterprise operations and verified records.";
+          }
+        } else if (isConversationalHelp) {
+          if (lang === "hi") {
+            answer = "मैं आपकी सहायता के लिए तैयार हूँ! आप मुझसे इस तरह के प्रश्न पूछ सकते हैं:\n• *'कौन से इनवॉइस ओवरड्यू हैं?'*\n• *'इस महीने का कुल राजस्व और लाभ दिखाओ'* \n• *'स्वीकृति के लिए लंबित कोटेशन कौन से हैं?'*\n• *'क्या कोई प्रोजेक्ट विलंबित है?'*";
+          } else if (lang === "te") {
+            answer = "నేను సహాయం చేయడానికి సిద్ధంగా ఉన్నాను! మీరు నన్ను ఇలాంటి ప్రశ్నలు అడగవచ్చు:\n• *'ఏ ఇన్వాయిస్‌లు బకాయి ఉన్నాయి?'*\n• *'నెలవారీ ఆదాయం మరియు లాభం చూపించు'* \n• *'పెండింగ్ కొటేషన్లు ఏవి?'*\n• *'ఏవైనా ప్రాజెక్ట్‌లు ఆలస్యమయ్యాయా?'*";
+          } else {
+            answer = "I am ready to help! You can ask me questions like:\n• *'Which invoices are overdue?'*\n• *'Show our monthly revenue and profit'* \n• *'Which quotations are waiting for approval?'*\n• *'Show delayed projects'* \n• *'Any open support tickets?'*\n\nAsk in English, Hindi, Telugu, Tamil, or your preferred language.";
+          }
+        } else if (isOffTopic) {
           if (lang === "hi") {
             answer = "मैं **अमीरू इंटेलिजेंस (Amiro Intelligence)** हूँ। मैं विशेष रूप से इस बिज़नेस ऑपरेशन्स प्लेटफ़ॉर्म के लिए अधिकृत हूँ। मैं केवल आपकी कंपनी के इनवॉइस, क्लाइंट्स, कोटेशन, प्रोजेक्ट्स और वित्तीय रिकॉर्ड्स से संबंधित प्रश्नों का उत्तर दे सकता हूँ। कृपया एप्लिकेशन से जुड़ा कोई प्रश्न पूछें।";
           } else if (lang === "te") {

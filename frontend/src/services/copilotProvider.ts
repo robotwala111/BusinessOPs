@@ -74,19 +74,24 @@ export async function generateCopilotAnswer(
 
   let response: Response;
   try {
+    const isQwenOrLocal = config.model.toLowerCase().includes("qwen") || config.url.includes("localhost") || config.url.includes("127.0.0.1");
+    const requestPayload: Record<string, unknown> = {
+      model: config.model,
+      messages,
+      temperature: 0.1,
+      max_tokens: 800,
+    };
+    if (!isQwenOrLocal) {
+      requestPayload.response_format = { type: "json_object" };
+    }
+
     response = await fetch(config.url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        model: config.model,
-        messages,
-        temperature: 0.1,
-        max_tokens: 800,
-        response_format: { type: "json_object" }
-      }),
+      body: JSON.stringify(requestPayload),
       signal: AbortSignal.timeout(30_000),
       cache: "no-store"
     });
@@ -114,7 +119,7 @@ export async function generateCopilotAnswer(
     throw new Error("The AI provider returned no answer.");
   }
 
-  let parsed: unknown;
+  let parsed: unknown = null;
   try {
     parsed = JSON.parse(content);
   } catch {
@@ -123,26 +128,29 @@ export async function generateCopilotAnswer(
       try {
         parsed = JSON.parse(match[1]);
       } catch {
-        throw new Error("The AI provider returned an invalid structured answer.");
+        parsed = null;
       }
-    } else {
-      throw new Error("The AI provider returned an invalid structured answer.");
     }
   }
 
-  if (
-    !parsed ||
-    typeof parsed !== "object" ||
-    !("answer" in parsed) ||
-    Object.keys(parsed).length !== 1 ||
-    typeof (parsed as { answer: unknown }).answer !== "string" ||
-    !(parsed as { answer: string }).answer.trim() ||
-    (parsed as { answer: string }).answer.length > 8000
-  ) {
+  let answerString = "";
+  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+    if (
+      !("answer" in parsed) ||
+      Object.keys(parsed).length !== 1 ||
+      typeof (parsed as { answer: unknown }).answer !== "string" ||
+      !(parsed as { answer: string }).answer.trim() ||
+      (parsed as { answer: string }).answer.length > 8000
+    ) {
+      throw new Error("The AI provider returned an invalid structured answer.");
+    }
+    answerString = (parsed as { answer: string }).answer.trim();
+  } else if (typeof content === "string" && content.trim()) {
+    // Direct textual / markdown response from Qwen or open-weights engine
+    answerString = content.trim();
+  } else {
     throw new Error("The AI provider returned an invalid structured answer.");
   }
-
-  const answerString = (parsed as { answer: string }).answer.trim();
   const inputTokens = typeof data.usage?.prompt_tokens === "number" ? data.usage.prompt_tokens : 100;
   const outputTokens = typeof data.usage?.completion_tokens === "number" ? data.usage.completion_tokens : 50;
 
