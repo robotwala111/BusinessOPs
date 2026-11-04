@@ -42,18 +42,32 @@ export function saveDemoMessages(conversationId: string, messages: CopilotMessag
   window.localStorage.setItem(`${DEMO_COPILOT_MESSAGES_KEY}-${conversationId}`, JSON.stringify(messages));
 }
 
-function detectQuestionLanguage(text: string): "hi" | "te" | "ta" | "es" | "hinglish" | "en" {
-  if (/[\u0900-\u097F]/.test(text)) return "hi"; // Devanagari / Hindi
-  if (/[\u0C00-\u0C7F]/.test(text)) return "te"; // Telugu
+export type SupportedLanguage = "en" | "hi" | "te" | "kn" | "ta" | "ml" | "mr" | "bn" | "gu" | "ar" | "es" | "hinglish";
+
+export function detectQuestionLanguage(text: string, preferred?: string): SupportedLanguage {
+  if (preferred && preferred !== "auto") {
+    return preferred as SupportedLanguage;
+  }
+  if (/[\u0C80-\u0CFF]/.test(text)) return "kn"; // Kannada
+  if (/[\u0D00-\u0D7F]/.test(text)) return "ml"; // Malayalam
   if (/[\u0B80-\u0BFF]/.test(text)) return "ta"; // Tamil
-  if (/\b(hola|gracias|facturas?|proyectos?|cotizaciones?|cuanto|por favor)\b/i.test(text)) return "es"; // Spanish
+  if (/[\u0C00-\u0C7F]/.test(text)) return "te"; // Telugu
+  if (/[\u0980-\u09FF]/.test(text)) return "bn"; // Bengali
+  if (/[\u0A80-\u0AFF]/.test(text)) return "gu"; // Gujarati
+  if (/[\u0600-\u06FF]/.test(text)) return "ar"; // Arabic
+  if (/[\u0900-\u097F]/.test(text)) {
+    if (/\b(aahe|kiti|sang|dakhav|kasa|kay|aamhi)\b/i.test(text)) return "mr"; // Marathi
+    return "hi"; // Hindi / Devanagari
+  }
+  if (/\b(hola|gracias|facturas?|proyectos?|cotizaciones?|cuanto|por favor)\b/i.test(text)) return "es";
   if (/\b(dikhao|batao|karo|kitna|kaun|hai|hoga|baki|paisa|kuch)\b/i.test(text)) return "hinglish";
   return "en";
 }
 
 export async function askAmiroIntelligenceDemo(
   question: string,
-  currentConvId?: string
+  currentConvId?: string,
+  preferredLanguage?: string
 ): Promise<{
   conversation: CopilotConversation;
   userMessage: CopilotMessage;
@@ -96,7 +110,7 @@ export async function askAmiroIntelligenceDemo(
 
   const clientMap = new Map(clients.map((c) => [c.id, c.company_name]));
   const intent = detectCopilotIntent(question);
-  const lang = detectQuestionLanguage(question);
+  const lang = detectQuestionLanguage(question, preferredLanguage);
 
   let answer = "";
   const records: CopilotRecord[] = [];
@@ -279,7 +293,42 @@ export async function askAmiroIntelligenceDemo(
         const realizedRev = payments.reduce((s, p) => s + Number(p.amount), 0);
         const activeProjs = projects.filter((p) => p.status === "active");
 
-        if (lang === "hi") {
+        if (/services|offer|what do you do/i.test(question)) {
+          if (lang === "te") {
+            answer = `### అమీరో టెక్ సొల్యూషన్స్ (Amiro Tech Solutions) — మా సేవలు\n\n` +
+              `మేము అత్యాధునిక ఎంటర్‌ప్రైజ్ టెక్నాలజీ సేవలను అందిస్తున్నాము:\n` +
+              `• **కస్టమ్ సాఫ్ట్‌వేర్ అభివృద్ధి:** వ్యాపార అవసరాలకు అనుగుణంగా వెబ్ మరియు మొబైల్ అప్లికేషన్లు\n` +
+              `• **క్లౌడ్ మరియు డెవ్‌ఆప్స్:** సెక్యూర్ క్లౌడ్ ఇన్‌ఫ్రాస్ట్రక్చర్ మరియు ఆటోమేషన్\n` +
+              `• **బిజినెస్ ఆపరేషన్స్ ప్లాట్‌ఫారమ్‌లు:** CRM, ఇన్వాయిసింగ్ మరియు ప్రాజెక్ట్ మేనేజ్‌మెంట్ పరిష్కారాలు\n` +
+              `• **నిర్వహణ మరియు SLA సపోర్ట్:** 24/7 సిస్టమ్ పర్యవేక్షణ మరియు మెయింటెనెన్స్\n` +
+              `• **AI & బిజినెస్ ఇంటెలిజెన్స్:** లైవ్ డేటా అనలిటిక్స్ మరియు స్మార్ట్ కోపైలట్ అసిస్టెంట్లు`;
+          } else if (lang === "hi") {
+            answer = `### अमीरू टेक सॉल्यूशंस (Amiro Tech Solutions) — हमारी सेवाएं\n\n` +
+              `हम प्रमुख एंटरप्राइज टेक्नोलॉजी समाधान प्रदान करते हैं:\n` +
+              `• **कस्टम सॉफ्टवेयर विकास:** आधुनिक क्लाउड-रेडी वेब व मोबाइल एंटरप्राइज समाधान\n` +
+              `• **क्लाउड एवं डेवऑप्स इन्फ्रास्ट्रक्चर:** सुरक्षित और उच्च-प्रदर्शन सर्वर प्रबंधन\n` +
+              `• **बिज़नेस ऑपरेशन्स सिस्टम्स:** CRM, बिलिंग, इनवॉइसिंग और वर्कफ़्लो ऑटोमेशन\n` +
+              `• **वार्षिक रखरखाव एवं SLA समर्थन:** 24/7 तकनीकी सहायता और सिस्टम स्थिरता\n` +
+              `• **AI एवं बिज़नेस इंटेलिजेंस:** वास्तविक समय में वित्तीय और परिचालन डेटा विश्लेषण`;
+          } else {
+            answer = `### Amiro Tech Solutions — Enterprise Services & Capabilities\n\n` +
+              `We provide comprehensive enterprise digital operations and software engineering services:\n` +
+              `• **Custom Enterprise Engineering:** High-performance web applications, portals, and workflow engines.\n` +
+              `• **Cloud Architecture & DevOps:** Resilient cloud hosting, CI/CD pipelines, and infrastructure automation.\n` +
+              `• **Business Operations Platforms:** CRM pipelines, commercial quotations, billing, and project tracking.\n` +
+              `• **SLA & Maintenance Contracts:** Dedicated 24/7 technical support, incident resolution, and preventative updates.\n` +
+              `• **AI & Operational Intelligence:** Real-time metrics calculation, financial modeling, and conversational business copilot.`;
+          }
+        } else if (/get started|getting started|how to start/i.test(question)) {
+          answer = `### Getting Started with Amiro Business Operations\n\n` +
+            `Welcome to the enterprise platform! Here is how to navigate and get the most out of your operations:\n` +
+            `1. **Executive Dashboard:** Access top-line KPIs, realized revenue, and delivery velocity from the main screen.\n` +
+            `2. **CRM & Clients:** Onboard client accounts, track leads, and log communication activities.\n` +
+            `3. **Quotations & Estimates:** Issue commercial quotes, manage tax line items, and request client approvals.\n` +
+            `4. **Projects:** Plan delivery milestones, track completion status, and monitor team deadlines.\n` +
+            `5. **Invoices & Finance:** Generate invoices, record payments, and audit overdue accounts.\n` +
+            `6. **Amiro Intelligence:** Click this floating AI widget anytime to ask questions in any language!`;
+        } else if (lang === "hi") {
           answer = `### अमीरू टेक सॉल्यूशंस (Amiro Tech Solutions) — कंपनी परिचय एवं बिज़नेस सारांश\n\n` +
             `**अमीरू टेक सॉल्यूशंस** एक प्रमुख एंटरप्राइज टेक्नोलॉजी सॉल्यूशंस एवं बिज़नेस ऑपरेशन्स प्रदाता है। हम आधुनिक डिजिटल इन्फ्रास्ट्रक्चर, कस्टम सॉफ्टवेयर और क्लाउड समाधान प्रदान करते हैं।\n\n` +
             `**लाइव ऑपरेशन्स स्थिति:**\n` +
@@ -497,16 +546,28 @@ export async function askAmiroIntelligenceDemo(
         const isOffTopic = /\b(joke|story|capital of|weather|recipe|sing|movie|president|prime minister|cricket|football|who is the president)\b/i.test(question);
 
         if (isGreeting) {
-          if (lang === "hi") {
-            answer = "नमस्ते! आज मैं आपकी क्या सहायता कर सकता हूँ? जब भी आपको आवश्यकता हो, आप हमारे क्लाइंट्स, इनवॉइस, प्रोजेक्ट्स या कोटेशन से जुड़ा डेटा पूछ सकते हैं।";
-          } else if (lang === "te") {
-            answer = "నమస్కారం! ఈరోజు నేను మీకు ఎలా సహాయపడగలను? మన క్లయింట్లు, ఇన్వాయిస్‌లు, ప్రాజెక్టులు లేదా కొటేషన్ల వివరాలు కావాలంటే నన్ను అడగండి.";
+          if (lang === "te") {
+            answer = "నమస్కారం! 👋 స్వాగతం. నేను మీ AI సహాయకుడిని. ఈరోజు నేను మీకు ఎలా సహాయపడగలను? మన క్లయింట్లు, ఇన్వాయిస్‌లు, ప్రాజెక్ట్‌లు లేదా కొటేషన్ల వివరాలు అడగండి.";
+          } else if (lang === "hi") {
+            answer = "नमस्ते! 👋 स्वागत है। मैं आपका AI सहायक हूँ। आज मैं आपकी क्या सहायता कर सकता हूँ? हमारे क्लाइंट्स, इनवॉइस, सक्रिय प्रोजेक्ट्स या कोटेशन के बारे में कभी भी पूछें।";
+          } else if (lang === "kn") {
+            answer = "ನಮಸ್ಕಾರ! 👋 ಸುಸ್ವಾಗತ. ನಾನು ನಿಮ್ಮ AI ಸಹಾಯಕ. ಇಂದು ನಾನು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ? ನಮ್ಮ ಗ್ರಾಹಕರು, ಇನ್‌ವಾಯ್ಸ್‌ಗಳು, ಪ್ರಾಜೆಕ್ಟ್‌ಗಳು ಅಥವಾ ಕೊಟೇಶನ್‌ಗಳ ಬಗ್ಗೆ ಕೇಳಿ.";
           } else if (lang === "ta") {
-            answer = "வணக்கம்! இன்று நான் உங்களுக்கு எவ்வாறு உதவ முடியும்? எங்கள் வாடிக்கையாளர்கள், இன்வாய்ஸ்கள் அல்லது திட்டப்பணிகள் குறித்து என்னிடம் கேட்கலாம்.";
+            answer = "வணக்கம்! 👋 வருக. நான் உங்கள் AI உதவியாளர். இன்று நான் உங்களுக்கு எவ்வாறு உதவ முடியும்? எங்கள் வாடிக்கையாளர்கள், இன்வாய்ஸ்கள் அல்லது திட்டப்பணிகள் குறித்து கேளுங்கள்.";
+          } else if (lang === "ml") {
+            answer = "നമസ്കാരം! 👋 സ്വാഗതം. ഞാൻ നിങ്ങളുടെ AI അസിസ്റ്റന്റാണ്. ഇന്ന് ഞാൻ നിങ്ങളെ എങ്ങനെ സഹായിക്കണം? ഞങ്ങളുടെ ക്ലയന്റുകൾ, ഇൻവോയ്സുകൾ അല്ലെങ്കിൽ പ്രോജക്റ്റുകൾ എന്നിവയെക്കുറിച്ച് ചോദിക്കൂ.";
+          } else if (lang === "mr") {
+            answer = "नमस्कार! 👋 स्वागत आहे. मी तुमचा AI सहाय्यक आहे. आज मी तुम्हाला कशी मदत करू शकतो? आमचे क्लायंट, इनव्हॉइस, सक्रिय प्रोजेक्ट्स किंवा कोटेशन्सबद्दल विचारा.";
+          } else if (lang === "bn") {
+            answer = "নমস্কার! 👋 স্বাগতম। আমি আপনার এআই সহকারী। আজ আমি আপনাকে কীভাবে সাহায্য করতে পারি? আমাদের ক্লায়েন্ট, ইনভয়েস, সক্রিয় প্রকল্প বা কোটেশন সম্পর্কে জিজ্ঞাসা করুন।";
+          } else if (lang === "gu") {
+            answer = "નમસ્તે! 👋 સ્વાગત છે. હું તમારો AI સહાયક છું. આજે હું તમને કેવી રીતે મદદ કરી શકું? અમારા ક્લાયન્ટ્સ, ઇન્વૉઇસેસ અથવા પ્રોજેક્ટ્સ વિશે પૂછો.";
+          } else if (lang === "ar") {
+            answer = "مرحباً! 👋 أهلاً بك. أنا مساعدك الذكي. كيف يمكنني مساعدتك اليوم؟ لا تتردد في الاستفسار عن العملاء أو الفواتير أو المشاريع أو عروض الأسعار.";
           } else if (lang === "es") {
-            answer = "¡Hola! ¿Cómo puedo ayudarte hoy? Puedes consultarme sobre clientes, facturas, proyectos o cotizaciones cuando desees.";
+            answer = "¡Hola! 👋 Bienvenido. Soy tu asistente de IA. ¿Cómo puedo ayudarte hoy? Puedes consultarme sobre clientes, facturas, proyectos o cotizaciones cuando desees.";
           } else {
-            answer = "Hello! How can I help you today? Whenever you're ready, please ask regarding our clients, invoices, active projects, or quotations.";
+            answer = "Hello! 👋 Welcome. I'm your AI assistant. How can I help you today? Whenever you're ready, feel free to ask about our clients, invoices, active projects, quotations, or cashflow.";
           }
         } else if (isIdentity) {
           if (lang === "hi") {

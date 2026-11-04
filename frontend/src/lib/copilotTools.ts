@@ -4,11 +4,11 @@ const intentPatterns: Array<[CopilotIntent, RegExp]> = [
   // 1. High-priority specific queries
   [
     "company_brief",
-    /\b(brief|about|who is|overview|details|summary|profile|information)\b.*\b(amiro|company|tech solutions|our organization)\b|\b(amiro|tech solutions)\b.*\b(brief|about|overview|details|summary|profile)\b|(अमीरू|कंपनी के बारे में|कंपनी विवरण)|(అమీరో|కంపెనీ వివరాలు)|(acerca de amiro|sobre amiro)/i
+    /\b(brief|about|who is|overview|details|summary|profile|information|services|offerings|solutions)\b.*\b(amiro|company|tech solutions|our organization|you offer|you provide)\b|\b(what\s+services(\s+do\s+you\s+offer)?|tell\s+me\s+about\s+(your\s+)?company|how\s+can\s+i\s+get\s+started|getting\s+started)\b|(अमीरू|कंपनी के बारे में|कंपनी विवरण|सेवाएं)|(అమీరో|కంపెనీ వివరాలు|సేవలు)|(acerca de amiro|sobre amiro|que servicios)/i
   ],
   [
     "assistant_status",
-    /\b(what are you doing|what r u doing|what do you do|what are you working on|current task)\b|(क्या कर रहे हो|तुम क्या करते हो)|(నువ్వు ఏమి చేస్తున్నావు|ఏమి చేస్తున్నావ్)|(que estas haciendo)/i
+    /\b(what are you doing|what r u doing|what do you do|what are you working on|current task|i need help|need help with something)\b|(क्या कर रहे हो|तुम क्या करते हो|मदद चाहिए)|(నువ్వు ఏమి చేస్తున్నావు|ఏమి చేస్తున్నావ్|సహాయం కావాలి)|(que estas haciendo|necesito ayuda)/i
   ],
   [
     "overdue_invoices",
