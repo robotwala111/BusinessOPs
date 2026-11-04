@@ -126,23 +126,20 @@ export function FloatingAIChatWidget() {
 
     setMessages((prev) => [...prev, tempUserMsg]);
 
-    // Sticky language: prioritize explicitly selected language, or active conversation locked language
-    const targetLang = selectedLanguage !== "auto"
-      ? selectedLanguage
-      : (activeConversation?.language as WidgetLanguage || undefined);
+    // Sticky language:
+    // If user explicitly picked a language from the dropdown (not "auto"), strictly enforce it.
+    // If "auto", leave targetLang undefined so every question's language is auto-detected dynamically.
+    const targetLang = selectedLanguage !== "auto" ? selectedLanguage : undefined;
 
     try {
       if (!isConfigured) {
-        // High-speed verified local engine with sticky language continuity
+        // High-speed verified local engine with dynamic auto-detection or strict language locking
         const result = await askAmiroIntelligenceDemo(
           question,
           activeConversation?.id,
           targetLang
         );
         setActiveConversation(result.conversation);
-        if (result.conversation.language && selectedLanguage === "auto") {
-          setSelectedLanguage(result.conversation.language as WidgetLanguage);
-        }
         setMessages((prev) => {
           const filtered = prev.filter((m) => m.id !== tempUserId);
           return [...filtered, result.userMessage, result.assistantMessage];
@@ -161,9 +158,6 @@ export function FloatingAIChatWidget() {
       })) as CopilotReply & { userMessage: CopilotMessage };
 
       setActiveConversation(payload.conversation);
-      if (payload.conversation.language && selectedLanguage === "auto") {
-        setSelectedLanguage(payload.conversation.language as WidgetLanguage);
-      }
       setMessages((prev) => {
         const filtered = prev.filter((m) => m.id !== tempUserId);
         return [...filtered, payload.userMessage, payload.message];

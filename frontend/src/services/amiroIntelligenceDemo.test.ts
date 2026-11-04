@@ -50,5 +50,35 @@ describe("Conversation language stickiness and consistency", () => {
     expect(res.assistantMessage.content).toContain("அமிரோ");
     expect(res.assistantMessage.content).not.toContain("I'm here to assist with Amiro Tech Solutions operations");
   });
+
+  it("auto-detects Malayalam when user enters Malayalam script", async () => {
+    // Auto-detect mode (no preferredLanguage or 'auto')
+    const res = await askAmiroIntelligenceDemo("ക്ലയന്റുകൾ ആരൊക്കെയാണ്", "conv-test-auto-ml");
+    expect(res.conversation.language).toBe("ml");
+    expect(res.assistantMessage.content).toMatch(/ക്ലയന്റ്|അക്കൗണ്ടുകൾ|രജിസ്റ്റർ/);
+  });
+
+  it("auto-detects Kannada when user enters Kannada script", async () => {
+    const res = await askAmiroIntelligenceDemo("ನಮಸ್ಕಾರ, ನೀವು ಯಾರು?", "conv-test-auto-kn");
+    expect(res.conversation.language).toBe("kn");
+    expect(res.assistantMessage.content).toContain("ಅಮಿರೋ");
+  });
+
+  it("handles 'fill client form' intent and returns direct portal auto-fill links", async () => {
+    const res = await askAmiroIntelligenceDemo("fill client form", "conv-test-autofill");
+    expect(res.assistantMessage.content).toContain("Apex Global Technologies");
+    expect(res.assistantMessage.content).toContain("/clients/new?autofill=true");
+    expect(res.assistantMessage.content).toContain("/clients/onboard?autofill=true");
+    expect(res.assistantMessage.records.some((r) => r.href === "/clients/new?autofill=true")).toBe(true);
+    expect(res.assistantMessage.records.some((r) => r.href === "/clients/onboard?autofill=true")).toBe(true);
+  });
+
+  it("handles 'fill client form' in Malayalam and returns Malayalam reply with links", async () => {
+    const res = await askAmiroIntelligenceDemo("ക്ലയന്റ് ഫോം പൂരിപ്പിക്കുക", "conv-test-autofill-ml");
+    expect(res.conversation.language).toBe("ml");
+    expect(res.assistantMessage.content).toContain("Apex Global Technologies");
+    expect(res.assistantMessage.content).toContain("/clients/new?autofill=true");
+    expect(res.assistantMessage.records.length).toBeGreaterThanOrEqual(2);
+  });
 });
 

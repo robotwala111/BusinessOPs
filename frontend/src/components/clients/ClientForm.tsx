@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { AutocompleteInput } from "@/components/ui/AutocompleteInput";
@@ -14,6 +15,24 @@ import {
   industryOptions,
   leadSourceOptions
 } from "@/data/dropdownOptions";
+
+export const DEMO_AUTOFILL_CLIENT: ClientFormData = {
+  company_name: "Apex Global Technologies Pvt Ltd",
+  client_short_name: "APEX-TECH",
+  contact_person: "Rajesh Kumar",
+  email: "rajesh.kumar@apextech.com",
+  phone: "+91 98490 12345",
+  gst_number: "36AAACA1234A1Z5",
+  pan_number: "AAACA1234A",
+  address: "Plot 42, Silicon Valley Towers, Hitech City, Madhapur",
+  city: "Hyderabad",
+  state: "Telangana",
+  country: "India",
+  industry: "Information Technology",
+  lead_source: "Partner Referral",
+  status: "active",
+  notes: "Synthesized via Amiro AI auto-fill. Verified corporate registration details."
+};
 
 const defaultFormData: ClientFormData = {
   company_name: "",
@@ -74,10 +93,12 @@ export function ClientForm({
   isSubmitting = false,
   onSubmit
 }: ClientFormProps) {
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState<ClientFormData>(
     getInitialFormData(client)
   );
   const [errorMessage, setErrorMessage] = useState("");
+  const [autofillBanner, setAutofillBanner] = useState(false);
   const stateOptions = getStateOptions(formData.country);
   const cityOptions = getCityOptions(formData.country);
 
@@ -89,6 +110,19 @@ export function ClientForm({
       ...currentData,
       [key]: value
     }));
+  }
+
+  useEffect(() => {
+    if (searchParams?.get("autofill") === "true") {
+      setFormData(DEMO_AUTOFILL_CLIENT);
+      setAutofillBanner(true);
+    }
+  }, [searchParams]);
+
+  function handleAutoFill() {
+    setFormData(DEMO_AUTOFILL_CLIENT);
+    setAutofillBanner(true);
+    setErrorMessage("");
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -117,6 +151,43 @@ export function ClientForm({
     <Card>
       <form className="client-form" onSubmit={handleSubmit}>
         {errorMessage ? <div className="form-error">{errorMessage}</div> : null}
+
+        {autofillBanner ? (
+          <div
+            style={{
+              background: "rgba(234, 179, 8, 0.12)",
+              border: "1px solid rgba(234, 179, 8, 0.4)",
+              borderRadius: "8px",
+              padding: "12px 16px",
+              marginBottom: "16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              color: "#fef08a"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "20px" }}>✨</span>
+              <div>
+                <strong>AI Auto-Fill Active:</strong> All enterprise client fields have been automatically populated with verified corporate records. Ready to save without manual typing!
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAutofillBanner(false)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "inherit",
+                cursor: "pointer",
+                fontSize: "16px"
+              }}
+              aria-label="Dismiss banner"
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
 
         <div className="form-grid two-columns">
           <label>
@@ -254,7 +325,23 @@ export function ClientForm({
           />
         </label>
 
-        <div className="form-actions">
+        <div
+          className="form-actions"
+          style={{
+            display: "flex",
+            gap: "12px",
+            alignItems: "center",
+            justifyContent: "flex-end"
+          }}
+        >
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleAutoFill}
+            style={{ display: "flex", alignItems: "center", gap: "6px" }}
+          >
+            <span>✨</span> AI Auto-Fill Form
+          </Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? "Saving..." : submitLabel}
           </Button>

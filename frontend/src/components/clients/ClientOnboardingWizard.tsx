@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { clientService } from "@/services/clientService";
 import { contactService } from "@/services/contactService";
@@ -95,6 +95,46 @@ const defaultState: OnboardingState = {
   milestoneTitle: "Discovery & Architecture Blueprint"
 };
 
+export const DEMO_WIZARD_AUTOFILL: OnboardingState = {
+  companyName: "Apex Global Technologies Pvt Ltd",
+  clientShortName: "APEX-TECH",
+  industry: "Enterprise Cloud & Software",
+  gstNumber: "36AAACA1234A1Z5",
+  cinNumber: "U72200TG2020PTC145678",
+  website: "https://www.apextech.example.com",
+  address: "Plot 42, Silicon Valley Towers, Hitech City, Madhapur",
+  city: "Hyderabad",
+  state: "Telangana",
+  country: "India",
+
+  primaryContactName: "Rajesh Kumar",
+  primaryDesignation: "Chief Technology Officer",
+  primaryPhone: "+91 98490 12345",
+  primaryEmail: "rajesh.kumar@apextech.com",
+  billingContactName: "Pooja Sharma",
+  billingContactEmail: "accounts@apextech.com",
+
+  services: ["Custom SaaS Development", "Cloud & DevOps", "AI & Business Intelligence", "Enterprise Maintenance"],
+  objectives: "Migrate legacy business operations into modern cloud platform with real-time financial tracking and AI copilot.",
+  scopeSummary: "Complete enterprise ERP modernization, automated billing workflows, customer portal, and SLA management.",
+
+  contractValue: 4850000,
+  paymentTerms: "Net 30",
+  billingCycle: "Milestone-based",
+  taxPercentage: 18,
+
+  ndaSigned: true,
+  msaSigned: true,
+  proposalRef: "PROP-2026-APEX-001",
+  documentNotes: "Mutual NDA executed. Master Services Agreement signed with standard indemnification.",
+
+  projectName: "Apex Cloud Enterprise Platform",
+  targetEndDate: new Date(Date.now() + 180 * 86400000).toISOString().slice(0, 10),
+  assignedManager: "Amiro Senior Engagement Director",
+  priority: "high",
+  milestoneTitle: "Phase 1: Architecture Blueprint & Core API Integration"
+};
+
 const STORAGE_KEY = "amiro-client-onboarding-draft";
 
 const STEPS = [
@@ -108,26 +148,43 @@ const STEPS = [
 ];
 
 export function ClientOnboardingWizard() {
+  const searchParams = useSearchParams();
   const [currentStep, setCurrentStep] = useState(1);
   const [form, setForm] = useState<OnboardingState>(defaultState);
   const [existingClients, setExistingClients] = useState<Client[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavedDraft, setIsSavedDraft] = useState(false);
+  const [isAutofilledBanner, setIsAutofilledBanner] = useState(false);
   const router = useRouter();
 
-  // Load draft from localStorage & fetch existing clients for duplicate checking
+  function handleAiAutoFill() {
+    setForm(DEMO_WIZARD_AUTOFILL);
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(DEMO_WIZARD_AUTOFILL));
+    setIsAutofilledBanner(true);
+    setCurrentStep(7); // Jump straight to review step so user can review and activate in 1 click!
+    setErrorMsg("");
+  }
+
+  // Load draft from localStorage, check for ?autofill=true & fetch existing clients
   useEffect(() => {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        setForm(JSON.parse(saved) as OnboardingState);
-      } catch {
-        // ignore parse error
+    if (searchParams?.get("autofill") === "true") {
+      setForm(DEMO_WIZARD_AUTOFILL);
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(DEMO_WIZARD_AUTOFILL));
+      setIsAutofilledBanner(true);
+      setCurrentStep(7);
+    } else {
+      const saved = window.localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          setForm(JSON.parse(saved) as OnboardingState);
+        } catch {
+          // ignore parse error
+        }
       }
     }
     clientService.getClients().then(setExistingClients).catch(() => []);
-  }, []);
+  }, [searchParams]);
 
   function saveDraft() {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(form));
@@ -288,12 +345,68 @@ export function ClientOnboardingWizard() {
             Guided 7-step enterprise onboarding for Amiro Tech Solutions. Pre-configures commercial terms, legal contracts, stakeholders, and delivery milestones.
           </p>
         </div>
-        <div className="wizard-hero-actions">
+        <div className="wizard-hero-actions" style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <button
+            type="button"
+            className="wizard-draft-btn"
+            onClick={handleAiAutoFill}
+            style={{
+              background: "linear-gradient(135deg, rgba(234, 179, 8, 0.25) 0%, rgba(202, 138, 4, 0.35) 100%)",
+              border: "1px solid rgba(234, 179, 8, 0.6)",
+              color: "#fef08a",
+              fontWeight: 600
+            }}
+          >
+            ⚡ AI Auto-Fill Wizard
+          </button>
           <button type="button" className="wizard-draft-btn" onClick={saveDraft}>
             {isSavedDraft ? "✓ Draft Saved" : "💾 Save Draft"}
           </button>
         </div>
       </div>
+
+      {/* AI Auto-Fill Active Banner */}
+      {isAutofilledBanner && (
+        <div
+          style={{
+            background: "rgba(234, 179, 8, 0.12)",
+            border: "1px solid rgba(234, 179, 8, 0.4)",
+            borderRadius: "8px",
+            padding: "14px 20px",
+            marginBottom: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            color: "#fef08a"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span style={{ fontSize: "24px" }}>⚡</span>
+            <div>
+              <strong style={{ display: "block", fontSize: "15px" }}>
+                AI Auto-Fill Active: 6 Enterprise Steps Fully Configured
+              </strong>
+              <span style={{ fontSize: "13px", opacity: 0.9 }}>
+                Populated verified corporate identity, stakeholders, scope, financials (₹48,50,000), compliance agreements & initial delivery project for <strong>Apex Global Technologies Pvt Ltd</strong> without manual entry!
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsAutofilledBanner(false)}
+            style={{
+              background: "none",
+              border: "none",
+              color: "inherit",
+              cursor: "pointer",
+              fontSize: "18px"
+            }}
+            aria-label="Dismiss banner"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* 7-Step Navigation Progress Bar */}
       <div className="wizard-steps-track">

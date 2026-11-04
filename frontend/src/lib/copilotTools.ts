@@ -3,6 +3,10 @@ import type { CopilotIntent } from "@/types/copilot";
 const intentPatterns: Array<[CopilotIntent, RegExp]> = [
   // 1. High-priority specific queries
   [
+    "fill_client_form",
+    /\b(fill|auto.?fill|populate|register|create|complete)\b.*\b(client|form|portal|onboard|details?|profile|wizard)\b|\b(fill|auto.?fill)\s+(form|portal|client|wizard)\b|\b(fill|auto.?fill)\b|(फॉर्म\s*भर|क्लाइंट\s*फॉर्म|ऑटो\s*फिल|पोर्टल\s*भर)|(ఫారం\s*నింపండి|క్లయింట్\s*ఫారం|ఆటో\s*ఫిల్)|(படிவம்\s*நிரப்பு|படிவத்தை\s*நிரப்பு|ஆட்டோ\s*ஃபில்)|(ഫോം\s*പൂരിപ്പിക്കുക|ക്ലയന്റ്\s*ഫോം|ഓട്ടോ\s*ഫിൽ)|(ಫಾರ್ಮ್\s*ಭರ್ತಿ|ಆಟೋ\s*ಫಿಲ್)|(फॉर्म\s*भरा|क्लायंट\s*फॉर्म)|(ফর্ম\s*পূরণ|অটো\s*ফিল)|(ફોર્મ\s*ભરો|ઑટો\s*ફિલ)|(تعبئة\s*النموذج|تعبئة\s*تلقائية)/i
+  ],
+  [
     "company_brief",
     /\b(brief|about|who is|overview|details|summary|profile|information|services|offerings|solutions)\b.*\b(amiro|company|tech solutions|our organization|you offer|you provide)\b|\b(what\s+services(\s+do\s+you\s+offer)?|tell\s+me\s+about\s+(your\s+)?company|how\s+can\s+i\s+get\s+started|getting\s+started)\b|(अमीरू|कंपनी के बारे में|कंपनी विवरण|सेवाएं)|(అమీరో|కంపెనీ వివరాలు|సేవలు)|(acerca de amiro|sobre amiro|que servicios)/i
   ],
@@ -46,15 +50,15 @@ const intentPatterns: Array<[CopilotIntent, RegExp]> = [
   ],
   [
     "clients_overview",
-    /\b(clients?|customers?)\b.*\b(list|show|all|how many|who|active|portfolio|accounts?)\b|\b(list|show|all|how many|who)\b.*\b(clients?|customers?)\b|(क्लाइंट|ग्राहक).*(सूची|दिखाओ|कितने)|(క్లయింట్లు|కస్టమర్లు).*(చూపించు|ఎంతమంది)|(clientes).*(mostrar|cuantos)/i
+    /\b(clients?|customers?)\b.*\b(list|show|all|how many|who|active|portfolio|accounts?)\b|\b(list|show|all|how many|who)\b.*\b(clients?|customers?)\b|(क्लाइंट|ग्राहक).*(सूची|दिखाओ|कितने)|(క్లయింట్లు|కస్టమర్లు).*(చూపించు|ఎంతమంది)|(ക്ലയന്|ഉപഭോക്)|(ಗ್ರಾಹಕ|ಕ್ಲೈಂಟ್)|(வாடிக்கையாளர்)|(clientes).*(mostrar|cuantos)/i
   ],
   [
     "active_projects",
-    /\b(projects?)\b.*\b(list|show|all|active|running|current|ongoing|progress|deliveries)\b|\b(list|show|all|active|running|current|ongoing)\b.*\b(projects?)\b|(प्रोजेक्ट|परियोजना).*(दिखाओ|सूची|चालू)|(ప్రాజెక్టులు).*(చూపించు|లిస్ట్|ప్రస్తుత)/i
+    /\b(projects?)\b.*\b(list|show|all|active|running|current|ongoing|progress|deliveries)\b|\b(list|show|all|active|running|current|ongoing)\b.*\b(projects?)\b|(प्रोजेक्ट|परियोजना).*(दिखाओ|सूची|चालू)|(ప్రాజెక్టులు).*(చూపించు|లిస్ట్|ప్రస్తుత)|(പ്രോജക്റ്റ്|പദ്ധതികൾ)|(ಪ್ರಾಜೆಕ್ಟ್‌ಗಳು)|(திட்டப்பணிகள்)/i
   ],
   [
     "invoices_overview",
-    /\b(invoices?|bills?)\b.*\b(list|show|all|total|recent|summary|issued)\b|\b(list|show|all|total|recent|summary)\b.*\b(invoices?|bills?)\b|(इनवॉइस|बिल).*(दिखाओ|सूची|कुल)|(ఇన్వాయిస్లు|బిల్లులు).*(చూపించు|మొత్తం)/i
+    /\b(invoices?|bills?)\b.*\b(list|show|all|total|recent|summary|issued)\b|\b(list|show|all|total|recent|summary)\b.*\b(invoices?|bills?)\b|(इनवॉइस|बिल).*(दिखाओ|सूची|कुल)|(ఇన్వాయిస్లు|బిల్లులు).*(చూపించు|మొత్తం)|(ഇൻവോയ്സുകൾ|ബില്ലുകൾ)|(ಇನ್‌ವಾಯ್ಸ್‌ಗಳು)|(இன்வாய்ஸ்கள்)/i
   ],
   [
     "quotations_overview",

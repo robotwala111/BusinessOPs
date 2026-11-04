@@ -58,20 +58,83 @@ const SUGGESTIONS_BY_LANG: Record<string, { heading: string; subtitle: string; c
       { text: "நான் எவ்வாறு தொடங்குவது?", icon: "🚀" },
       { text: "எனக்கு உதவி தேவை.", icon: "💡" },
       { text: "நிலுவையில் உள்ள இன்வாய்ஸ்களைக் காட்டு.", icon: "📑" },
-      { text: "செயலில் உள்ள திட்டங்களைச் சுருக்கமாகக் கூறுங்கள்.", icon: "📊" }
+      { text: "செயலில் உள்ள திட்டங்களைச் சுருக்கமாகக் கூறுங்கள்.", icon: "📊" },
+      { text: "படிவத்தை தானாக நிரப்பு.", icon: "✨" }
+    ]
+  },
+  ml: {
+    heading: "നമസ്കാരം! സ്വാഗതം.",
+    subtitle: "ഞാൻ നിങ്ങളുടെ അമിറോ AI അസിസ്റ്റന്റാണ്. ഇന്ന് ഞാൻ നിങ്ങളെ എങ്ങനെ സഹായിക്കണം?",
+    caption: "മലയാളത്തിൽ ബിസിനസ്സ് വിവരങ്ങൾ ചോദിക്കൂ (ക്ലയന്റുകൾ, പ്രോജക്റ്റുകൾ, ഇൻവോയ്സുകൾ).",
+    chips: [
+      { text: "നിങ്ങൾ എന്തൊക്കെ സേവനങ്ങളാണ് നൽകുന്നത്?", icon: "💼" },
+      { text: "കമ്പനിയെക്കുറിച്ചുള്ള വിവരങ്ങൾ പറയൂ.", icon: "🏢" },
+      { text: "ഞാൻ എങ്ങനെ ആരംഭിക്കണം?", icon: "🚀" },
+      { text: "എനിക്ക് ഒരു സഹായം വേണം.", icon: "💡" },
+      { text: "കുടിശ്ശികയുള്ള ഇൻവോയ്സുകൾ ഏതൊക്കെയാണ്?", icon: "📑" },
+      { text: "സജീവ പ്രോജക്റ്റുകളുടെ വിവരങ്ങൾ നൽകുക.", icon: "📊" },
+      { text: "ക്ലയന്റ് ഫോം ഓട്ടോ-ഫിൽ ചെയ്യുക.", icon: "✨" }
+    ]
+  },
+  mr: {
+    heading: "नमस्कार! स्वागत आहे.",
+    subtitle: "मी तुमचा अमिरो AI सहाय्यक आहे. आज मी तुम्हाला कशी मदत करू शकतो?",
+    caption: "मराठीत विचारा — क्लायंट, इनव्हॉइस, सक्रिय प्रोजेक्ट्स.",
+    chips: [
+      { text: "तुम्ही कोणत्या सेवा प्रदान करता?", icon: "💼" },
+      { text: "तुमच्या कंपनीबद्दल सांगा.", icon: "🏢" },
+      { text: "थकबाकी असलेले इनव्हॉइस दाखवा.", icon: "📑" },
+      { text: "सक्रिय प्रोजेक्ट्सचा तपशील द्या.", icon: "📊" },
+      { text: "क्लायंट फॉर्म ऑटो-फिल करा.", icon: "✨" }
+    ]
+  },
+  bn: {
+    heading: "নমস্কার! স্বাগতম।",
+    subtitle: "আমি আপনার আমিরো এআই সহকারী। আজ আমি আপনাকে কীভাবে সাহায্য করতে পারি?",
+    caption: "বাংলায় জিজ্ঞাসা করুন — ক্লায়েন্ট, ইনভয়েস, প্রকল্প।",
+    chips: [
+      { text: "আপনারা কী কী পরিষেবা প্রদান করেন?", icon: "💼" },
+      { text: "কোম্পানি সম্পর্কে বিস্তারিত বলুন।", icon: "🏢" },
+      { text: "বকেয়া ইনভয়েসগুলি দেখান।", icon: "📑" },
+      { text: "সক্রিয় প্রকল্পগুলোর বিবরণ দিন।", icon: "📊" },
+      { text: "ক্লায়েন্ট ফর্ম অটো-ফিল করুন।", icon: "✨" }
+    ]
+  },
+  gu: {
+    heading: "નમસ્તે! સ્વાગત છે.",
+    subtitle: "હું તમારો અમિરો AI સહાયક છું. આજે હું તમને કેવી રીતે મદદ કરી શકું?",
+    caption: "ગુજરાતીમાં પૂછો — ક્લાયન્ટ્સ, ઇન્વૉઇસેસ, પ્રોજેક્ટ્સ.",
+    chips: [
+      { text: "તમે કઈ સેવાઓ પ્રદાન કરો છો?", icon: "💼" },
+      { text: "કંપની વિશે વિગતો આપો.", icon: "🏢" },
+      { text: "બાકી ઇન્વૉઇસેસ બતાવો.", icon: "📑" },
+      { text: "સક્રિય પ્રોજેક્ટ્સની વિગતો આપો.", icon: "📊" },
+      { text: "ક્લાયન્ટ ફોર્મ ઑટો-ફિલ કરો.", icon: "✨" }
+    ]
+  },
+  ar: {
+    heading: "مرحباً! أهلاً بك.",
+    subtitle: "أنا مساعدك الذكي أميرو. كيف يمكنني مساعدتك اليوم؟",
+    caption: "تحدث بالعربية — استفسر عن العملاء، الفواتير، والمشاريع.",
+    chips: [
+      { text: "ما هي الخدمات التي تقدمونها؟", icon: "💼" },
+      { text: "أخبرني عن شركتكم.", icon: "🏢" },
+      { text: "اعرض الفواتير المستحقة والمتأخرة.", icon: "📑" },
+      { text: "ملخص المشاريع النشطة.", icon: "📊" },
+      { text: "تعبئة نموذج العميل تلقائياً.", icon: "✨" }
     ]
   },
   default: {
     heading: "Hello! Welcome.",
     subtitle: "I'm your Amiro AI assistant. How can I help you today?",
-    caption: "Ask in English, Telugu, Hindi, Kannada, Tamil, or your native language.",
+    caption: "Ask in English, Malayalam, Tamil, Telugu, Hindi, Kannada, or your native language.",
     chips: [
       { text: "What services do you offer?", icon: "💼" },
       { text: "Tell me about your company.", icon: "🏢" },
-      { text: "How can I get started?", icon: "🚀" },
-      { text: "I need help with something.", icon: "💡" },
+      { text: "Fill client form automatically.", icon: "✨" },
       { text: "Show overdue invoices.", icon: "📑" },
-      { text: "Summarize active projects.", icon: "📊" }
+      { text: "Summarize active projects.", icon: "📊" },
+      { text: "How can I get started?", icon: "🚀" }
     ]
   }
 };

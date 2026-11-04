@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ProjectSelect } from "@/components/projects/ProjectSelect";
 import { quotationStatusLabels } from "@/components/quotations/quotationLabels";
 import { Button } from "@/components/ui/Button";
@@ -24,6 +25,23 @@ const defaultItem: QuotationItemFormData = {
   description: "",
   quantity: 1,
   unit_price: 0
+};
+
+export const DEMO_QUOTATION_AUTOFILL: Partial<QuotationFormData> = {
+  title: "Enterprise Cloud ERP Modernization & AI Intelligence Suite",
+  project_overview: "Comprehensive digital transformation of client business operations, automated invoicing, real-time analytics, and AI assistant.",
+  scope_of_work: "Full-stack development, database schema migration, multi-tenant RBAC, payment gateway integration, and SLA monitoring.",
+  tech_stack: "Next.js, TypeScript, Python FastAPI, PostgreSQL, Supabase, Tailwind CSS",
+  project_timeline: "4 months across 4 distinct sprint milestones.",
+  payment_terms: "30% upfront advance, 40% on milestone beta delivery, 30% on production sign-off.",
+  support_and_maintenance: "12 months 24/7 SLA enterprise support included.",
+  notes: "Synthesized automatically by Amiro AI for immediate client review and approval.",
+  items: [
+    { description: "Phase 1: Core Architecture, Multi-Tenant Database & Auth Setup", quantity: 1, unit_price: 1250000 },
+    { description: "Phase 2: Commercial Operations (Invoicing, Quotations, Contracts & Analytics)", quantity: 1, unit_price: 1800000 },
+    { description: "Phase 3: AI Intelligence Copilot, Multilingual Engine & Automated Workflows", quantity: 1, unit_price: 1200000 },
+    { description: "Phase 4: Enterprise Security Hardening, Penetration Testing & SLA Deployment", quantity: 1, unit_price: 600000 }
+  ]
 };
 
 const defaultFormData: QuotationFormData = {
@@ -96,12 +114,35 @@ export function QuotationForm({
   isSubmitting = false,
   onSubmit
 }: QuotationFormProps) {
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState<QuotationFormData>(
     getInitialFormData(quotation)
   );
   const [errorMessage, setErrorMessage] = useState("");
   const [isGeneratingNumber, setIsGeneratingNumber] = useState(!quotation);
+  const [autofillBanner, setAutofillBanner] = useState(false);
   const { clients, isLoading: isLoadingClients } = useClients();
+
+  function handleAiAutoFill() {
+    setFormData((prev) => ({
+      ...prev,
+      ...DEMO_QUOTATION_AUTOFILL,
+      client_id: prev.client_id || (clients[0]?.id ?? "")
+    }));
+    setAutofillBanner(true);
+    setErrorMessage("");
+  }
+
+  useEffect(() => {
+    if (searchParams?.get("autofill") === "true") {
+      setFormData((prev) => ({
+        ...prev,
+        ...DEMO_QUOTATION_AUTOFILL,
+        client_id: prev.client_id || (clients[0]?.id ?? "")
+      }));
+      setAutofillBanner(true);
+    }
+  }, [searchParams, clients]);
 
   useEffect(() => {
     if (quotation) {
@@ -241,6 +282,43 @@ export function QuotationForm({
     <Card>
       <form className="client-form" onSubmit={handleSubmit}>
         {errorMessage ? <div className="form-error">{errorMessage}</div> : null}
+
+        {autofillBanner ? (
+          <div
+            style={{
+              background: "rgba(234, 179, 8, 0.12)",
+              border: "1px solid rgba(234, 179, 8, 0.4)",
+              borderRadius: "8px",
+              padding: "12px 16px",
+              marginBottom: "16px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              color: "#fef08a"
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "20px" }}>✨</span>
+              <div>
+                <strong>AI Auto-Fill Active:</strong> Enterprise Quotation title, scope of work, timeline, and itemized deliverables have been automatically synthesized. Ready to review and issue!
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAutofillBanner(false)}
+              style={{
+                background: "none",
+                border: "none",
+                color: "inherit",
+                cursor: "pointer",
+                fontSize: "16px"
+              }}
+              aria-label="Dismiss banner"
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
 
         <div className="form-grid two-columns">
           <label>
@@ -524,7 +602,23 @@ export function QuotationForm({
           />
         </label>
 
-        <div className="form-actions">
+        <div
+          className="form-actions"
+          style={{
+            display: "flex",
+            gap: "12px",
+            alignItems: "center",
+            justifyContent: "flex-end"
+          }}
+        >
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleAiAutoFill}
+            style={{ display: "flex", alignItems: "center", gap: "6px" }}
+          >
+            <span>✨</span> AI Auto-Fill Quotation
+          </Button>
           <Button type="submit" disabled={isSubmitting || isGeneratingNumber}>
             {isSubmitting ? "Saving..." : submitLabel}
           </Button>

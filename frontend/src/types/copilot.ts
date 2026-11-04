@@ -1,6 +1,7 @@
 export type CopilotIntent =
   | "company_brief"
   | "assistant_status"
+  | "fill_client_form"
   | "clients_overview"
   | "active_projects"
   | "invoices_overview"
