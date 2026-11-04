@@ -1,14 +1,38 @@
 import type { CopilotIntent } from "@/types/copilot";
 
 const intentPatterns: Array<[CopilotIntent, RegExp]> = [
-  ["today_activities", /\b(today|today's|activities|activity|meetings|calls)\b/i],
-  ["overdue_invoices", /\b(overdue|past due|late)\b.*\b(invoice|invoices|payment|payments)\b|\b(invoice|invoices|payment|payments)\b.*\b(overdue|past due|late)\b/i],
-  ["client_followups", /\b(follow.?ups?|follow up|followup|follow-up)\b|\bclients?\b.*\b(contact|reach|follow)\b/i],
-  ["pending_quotations", /\b(pending|awaiting|open)\b.*\b(quotation|quotations|quote|quotes|proposal|proposals)\b|\b(quotation|quotations|quote|quotes|proposal|proposals)\b.*\b(pending|awaiting|open)\b/i],
-  ["delayed_projects", /\b(delayed|late|overdue|behind schedule)\b.*\b(project|projects)\b|\b(project|projects)\b.*\b(delayed|late|overdue|behind schedule)\b/i],
-  ["monthly_financials", /\b(monthly|this month|month)\b.*\b(revenue|income|expenses|financials?)\b|\b(revenue|income|expenses|financials?)\b.*\b(monthly|this month|month)\b/i],
-  ["expiring_contracts", /\b(expiring|renewal|renewals|expires|expiry)\b.*\b(contract|contracts)\b|\b(contract|contracts)\b.*\b(expiring|renewal|renewals|expires|expiry)\b/i],
-  ["unresolved_tickets", /\b(unresolved|open|pending)\b.*\b(ticket|tickets|support)\b|\b(ticket|tickets|support)\b.*\b(unresolved|open|pending)\b/i]
+  [
+    "today_activities",
+    /\b(today|today's|activities|activity|meetings|calls)\b|(आज|आज की|गतिविधियां|बैठक)|(ఈరోజు|కార్యకలాపాలు)|(actividades de hoy|reuniones)/i
+  ],
+  [
+    "overdue_invoices",
+    /\b(overdue|past due|late)\b.*\b(invoice|invoices|payment|payments)\b|\b(invoice|invoices|payment|payments)\b.*\b(overdue|past due|late)\b|(बकाया|देरी|अतिदेय).*(इनवॉइस|बिल|भुगतान)|(इनवॉइस|बिल|भुगतान).*(बकाया|पेंडिंग)|(పెండింగ్|బకాయి).*(ఇన్వాయిస్|చెల్లింపు)|(facturas?|pagos?).*(vencidas?|pendientes?)|(vencidas?|pendientes?).*(facturas?|pagos?)|(baki|pending).*(invoice|bill|payment)/i
+  ],
+  [
+    "client_followups",
+    /\b(follow.?ups?|follow up|followup|follow-up)\b|\bclients?\b.*\b(contact|reach|follow)\b|(फॉलो.?अप|ग्राहक संपर्क)|(ఫాలోఅప్|క్లయింట్)|(seguimiento|contactar clientes)/i
+  ],
+  [
+    "pending_quotations",
+    /\b(pending|awaiting|open)\b.*\b(quotation|quotations|quote|quotes|proposal|proposals)\b|\b(quotation|quotations|quote|quotes|proposal|proposals)\b.*\b(pending|awaiting|open)\b|(पेंडिंग|खुले|लंबित).*(कोटेशन|प्रस्ताव)|(कोटेशन|प्रस्ताव).*(पेंडिंग|स्वीकृति)|(పెండింగ్).*(కొటేషన్|ప్రతిపాదన)|(cotizaciones?|propuestas?).*(pendientes?|abiertas?)/i
+  ],
+  [
+    "delayed_projects",
+    /\b(delayed|late|overdue|behind schedule)\b.*\b(project|projects)\b|\b(project|projects)\b.*\b(delayed|late|overdue|behind schedule)\b|(विलंबित|देरी|लेट).*(प्रोजेक्ट|परियोजना)|(లేట్|ఆలస్యం).*(ప్రాజెక్ట్)|(proyectos?).*(retrasados?|demorados?)/i
+  ],
+  [
+    "monthly_financials",
+    /\b(monthly|this month|month)\b.*\b(revenue|income|expenses|financials?)\b|\b(revenue|income|expenses|financials?)\b.*\b(monthly|this month|month)\b|(मासिक|इस महीने|महीने).*(राजस्व|आय|कमाई|खर्च)|(నెల|నెలవారీ).*(ఆదాయం|ఖర్చులు)|(ingresos?|gastos?).*(mensuales?|este mes)/i
+  ],
+  [
+    "expiring_contracts",
+    /\b(expiring|renewal|renewals|expires|expiry)\b.*\b(contract|contracts)\b|\b(contract|contracts)\b.*\b(expiring|renewal|renewals|expires|expiry)\b|(समाप्त|नवीनीकरण|एक्सपायरी).*(अनुबंध|कॉन्ट्रैक्ट)|(ముగింపు|గడువు).*(ఒప్పందం|కాంట్రాక్ట్)|(contratos?).*(vencimiento|expirando|renovacion)/i
+  ],
+  [
+    "unresolved_tickets",
+    /\b(unresolved|open|pending)\b.*\b(ticket|tickets|support)\b|\b(ticket|tickets|support)\b.*\b(unresolved|open|pending)\b|(अनसुलझे|खुले|लंबित).*(टिकट|सपोर्ट)|(పరిష్కరించని|ఓపెన్).*(టికెట్|సపోర్ట్)|(tickets?|soporte).*(pendientes?|abiertos?)/i
+  ]
 ];
 
 export function detectCopilotIntent(question: string): CopilotIntent | null {
