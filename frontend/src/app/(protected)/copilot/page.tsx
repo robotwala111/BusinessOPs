@@ -47,11 +47,19 @@ async function authorizedFetch(url: string, init?: RequestInit) {
   return payload;
 }
 
+const INITIAL_GREETING_MESSAGE: CopilotMessage = {
+  id: "msg-ai-greeting-init",
+  role: "assistant",
+  content: "Hello! Welcome to **Amiro Intelligence**.\n\nI am your dedicated enterprise business operations assistant. How can I help you today? Whenever you're ready, feel free to ask about our clients, invoices, active projects, quotations, or cashflow in any language.",
+  records: [],
+  created_at: new Date().toISOString()
+};
+
 export default function CopilotPage() {
   const { isConfigured, isDemoMode } = useAuth();
   const [conversations, setConversations] = useState<CopilotConversation[]>([]);
   const [conversation, setConversation] = useState<CopilotConversation | null>(null);
-  const [messages, setMessages] = useState<CopilotMessage[]>([]);
+  const [messages, setMessages] = useState<CopilotMessage[]>([INITIAL_GREETING_MESSAGE]);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
   const [lastUsage, setLastUsage] = useState<CopilotUsage | null>(null);
@@ -84,7 +92,8 @@ export default function CopilotPage() {
     try {
       if (!isConfigured) {
         setConversation(item);
-        setMessages(getDemoMessages(item.id));
+        const msgs = getDemoMessages(item.id);
+        setMessages(msgs.length > 0 ? msgs : [INITIAL_GREETING_MESSAGE]);
         setLastUsage(null);
         return;
       }
@@ -93,7 +102,7 @@ export default function CopilotPage() {
         messages: CopilotMessage[];
       };
       setConversation(payload.conversation);
-      setMessages(payload.messages);
+      setMessages(payload.messages.length > 0 ? payload.messages : [INITIAL_GREETING_MESSAGE]);
       setLastUsage(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to load conversation.");
@@ -104,7 +113,7 @@ export default function CopilotPage() {
 
   function startNewConversation() {
     setConversation(null);
-    setMessages([]);
+    setMessages([INITIAL_GREETING_MESSAGE]);
     setDraft("");
     setError("");
     setLastUsage(null);
@@ -220,28 +229,6 @@ export default function CopilotPage() {
 
         <div className="copilot-chat card">
           <div className="copilot-messages" aria-live="polite">
-            {messages.length === 0 && !isLoading ? (
-              <div className="copilot-welcome">
-                <h2>How can Amiro Intelligence assist your operations today?</h2>
-                <p className="muted">
-                  Ask natural-language business questions. All calculations are executed directly against authorized operational and financial records.
-                </p>
-                <div className="copilot-suggestions">
-                  {suggestions.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      className="btn-secondary"
-                      disabled={isSending}
-                      onClick={() => void sendMessage(undefined, suggestion)}
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
             {messages.map((message) => (
               <article className={`copilot-message ${message.role}`} key={message.id}>
                 <strong>{message.role === "user" ? "You" : "Amiro Intelligence"}</strong>
@@ -251,6 +238,22 @@ export default function CopilotPage() {
                 {message.records?.length ? <RecordLinks records={message.records} /> : null}
               </article>
             ))}
+
+            {messages.length === 1 && !isLoading ? (
+              <div className="copilot-suggestions" style={{ marginTop: "12px", marginBottom: "16px" }}>
+                {suggestions.slice(0, 4).map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    className="btn-secondary"
+                    disabled={isSending}
+                    onClick={() => void sendMessage(undefined, suggestion)}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            ) : null}
 
             {isSending ? (
               <article className="copilot-message assistant" style={{ opacity: 0.9 }}>
