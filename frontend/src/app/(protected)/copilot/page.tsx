@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { requireSupabase } from "@/services/moduleHelpers";
 import {
@@ -57,6 +57,11 @@ export default function CopilotPage() {
   const [lastUsage, setLastUsage] = useState<CopilotUsage | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isSending]);
 
   const loadConversations = useCallback(async () => {
     if (!isConfigured) {
@@ -109,16 +114,32 @@ export default function CopilotPage() {
     event?.preventDefault();
     const question = (suggestedQuestion ?? draft).trim();
     if (!question || isSending) return;
+
+    // 1. Immediately clear the input box so the user's text does not linger!
+    setDraft("");
     setError("");
     setIsSending(true);
+
+    // 2. Optimistically display user's message in the chat immediately
+    const tempUserId = `user-temp-${Date.now()}`;
+    const tempUserMsg: CopilotMessage = {
+      id: tempUserId,
+      role: "user",
+      content: question,
+      records: [],
+      created_at: new Date().toISOString()
+    };
+    setMessages((current) => [...current, tempUserMsg]);
 
     try {
       if (!isConfigured) {
         // Local sandbox engine running live calculations against verified demo records
         const result = await askAmiroIntelligenceDemo(question, conversation?.id);
         setConversation(result.conversation);
-        setMessages((current) => [...current, result.userMessage, result.assistantMessage]);
-        setDraft("");
+        setMessages((current) => {
+          const withoutTemp = current.filter((m) => m.id !== tempUserId);
+          return [...withoutTemp, result.userMessage, result.assistantMessage];
+        });
         await loadConversations();
         return;
       }
@@ -128,12 +149,17 @@ export default function CopilotPage() {
         body: JSON.stringify({ message: question, conversationId: conversation?.id })
       }) as CopilotReply & { userMessage: CopilotMessage };
       setConversation(payload.conversation);
-      setMessages((current) => [...current, payload.userMessage, payload.message]);
+      setMessages((current) => {
+        const withoutTemp = current.filter((m) => m.id !== tempUserId);
+        return [...withoutTemp, payload.userMessage, payload.message];
+      });
       setLastUsage(payload.usage);
-      setDraft("");
       await loadConversations();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to send your question.");
+      // Restore draft on failure so user does not lose input
+      setDraft(question);
+      setMessages((current) => current.filter((m) => m.id !== tempUserId));
       void loadConversations().catch(() => {
         setError((current) => `${current} Conversation history could not be refreshed.`);
       });
@@ -227,11 +253,16 @@ export default function CopilotPage() {
             ))}
 
             {isSending ? (
-              <p className="copilot-pending" role="status">
-                Analyzing operations database and computing business facts…
-              </p>
+              <article className="copilot-message assistant" style={{ opacity: 0.9 }}>
+                <strong>Amiro Intelligence</strong>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "6px" }}>
+                  <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", background: "#f59e0b", animation: "pulse 1.2s infinite" }} />
+                  <span style={{ fontSize: "13px", color: "var(--text-secondary, #64748b)" }}>Analyzing verified enterprise records…</span>
+                </div>
+              </article>
             ) : null}
             {isLoading && conversation ? <p className="muted">Loading conversation…</p> : null}
+            <div ref={messagesEndRef} />
           </div>
 
           {error ? <div className="form-error" role="alert">{error}</div> : null}

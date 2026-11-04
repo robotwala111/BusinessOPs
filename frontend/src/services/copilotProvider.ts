@@ -79,9 +79,16 @@ export async function generateCopilotAnswer(
       model: config.model,
       messages,
       temperature: 0.1,
-      max_tokens: 800,
+      max_tokens: isQwenOrLocal ? 280 : 800,
     };
-    if (!isQwenOrLocal) {
+    if (isQwenOrLocal) {
+      // Optimize CPU inference speed and latency for local Ollama/Qwen
+      requestPayload.options = {
+        num_predict: 280,
+        num_ctx: 2048,
+        temperature: 0.1,
+      };
+    } else {
       requestPayload.response_format = { type: "json_object" };
     }
 

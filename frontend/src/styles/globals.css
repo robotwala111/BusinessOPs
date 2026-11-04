@@ -5566,3 +5566,14 @@ body {
   background: #1e293b;
   color: #cbd5e1;
 }
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+}

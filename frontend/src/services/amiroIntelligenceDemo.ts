@@ -154,33 +154,47 @@ export async function askAmiroIntelligenceDemo(
     }))
   };
 
-  // Attempt live LLM inference (e.g. Qwen 2.5 via Ollama/OpenRouter/API) if configured on server
+  const isGreeting = /^(hi|hello|hey|greetings|namaste|vanakkam|namaskar|hola)\b/i.test(question.trim()) || /^(hi|hello|hey)$/i.test(question.trim());
+  const isIdentity = /\b(who are you|what can you do|who made you|tum kaun ho|kya kar sakte ho|nuvvu evaru|neeku emi telusu|tell me what you do)\b/i.test(question);
+  const isLocation = /\b(where are you|where r u|kahan ho|ekkada unnav|enga irukinga)\b/i.test(question);
+  const isConversationalHelp = /\b(let me know|tell me|what do you want|kya chahiye|em kavali|how can you help)\b/i.test(question);
+  const isOffTopic = /\b(joke|story|capital of|weather|recipe|sing|movie|president|prime minister|cricket|football|who is the president)\b/i.test(question);
+  const isQuickConversational = isGreeting || isIdentity || isLocation || isConversationalHelp || isOffTopic;
+
+  // Attempt live LLM inference (e.g. Qwen 2.5 via Ollama/OpenRouter/API) if configured on server and query is business-oriented
   let llmAnswer: string | null = null;
-  try {
-    const prior = getDemoMessages(convId).slice(-6).map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content
-    }));
+  if (!isQuickConversational) {
+    try {
+      const prior = getDemoMessages(convId).slice(-2).map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content
+      }));
 
-    const response = await fetch("/api/copilot/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message: question,
-        facts: businessFacts,
-        history: prior
-      })
-    });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 9000);
 
-    if (response.ok) {
-      const payload = await response.json();
-      if (payload && typeof payload.answer === "string" && !payload.fallback) {
-        llmAnswer = payload.answer;
+      const response = await fetch("/api/copilot/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: question,
+          facts: businessFacts,
+          history: prior
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const payload = await response.json();
+        if (payload && typeof payload.answer === "string" && !payload.fallback) {
+          llmAnswer = payload.answer;
+        }
       }
+    } catch {
+      // If backend LLM endpoint unreachable or slow, seamlessly fall back to local multilingual synthesis
+      llmAnswer = null;
     }
-  } catch {
-    // If backend LLM endpoint unreachable, seamlessly fall back to local multilingual synthesis
-    llmAnswer = null;
   }
 
   // Populate records shortcut cards based on identified intent
