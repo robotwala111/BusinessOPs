@@ -29,62 +29,51 @@ function responseError(error: unknown) {
 
 export async function POST(request: Request) {
   try {
-    const apiKey = process.env.OPENAI_API_KEY?.trim();
-    if (!apiKey) {
-      throw new SpeechError(
-        "OpenAI API key not configured. Set OPENAI_API_KEY environment variable.",
-        503
-      );
-    }
-
     const formData = await request.formData();
     const audioFile = formData.get("audio") as Blob | null;
+    const audioFilename = audioFile instanceof File && audioFile.name ? audioFile.name : "audio.webm";
     const language = (formData.get("language") as string) || undefined;
 
     if (!audioFile) {
       throw new SpeechError("No audio file provided", 400);
     }
-
-    // Check file size (max 25MB for Whisper API)
-    if (audioFile.size > 25 * 1024 * 1024) {
+    if (audioFile.size === 0 || audioFile.size > 25 * 1024 * 1024) {
       throw new SpeechError("Audio file too large. Maximum size is 25MB.", 413);
     }
 
-    // Forward to OpenAI Whisper API
+    const whisperBaseUrl = process.env.WHISPER_BASE_URL?.trim();
+    if (!whisperBaseUrl) throw new SpeechError("Local Whisper is not configured. Set WHISPER_BASE_URL and start the service.", 503);
+    const cleanUrl = whisperBaseUrl.replace(/\/+$/, "");
+    const endpoint = cleanUrl.endsWith("/v1")
+      ? `${cleanUrl}/audio/transcriptions`
+      : `${cleanUrl}/v1/audio/transcriptions`;
     const whisperFormData = new FormData();
-    whisperFormData.append("file", audioFile, "audio.webm");
+    whisperFormData.append("file", audioFile, audioFilename);
     whisperFormData.append("model", "whisper-1");
-    
-    // Only add language if specified (otherwise auto-detect)
-    if (language && language !== "auto") {
-      whisperFormData.append("language", language);
-    }
+    if (language && language !== "auto") whisperFormData.append("language", language);
 
-    const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    const response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`
-      },
       body: whisperFormData,
-      signal: AbortSignal.timeout(25000)
+      signal: AbortSignal.timeout(120000),
+      cache: "no-store"
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Whisper API error:", response.status, errorText);
+      console.error("Local Whisper transcription failed", { status: response.status });
       throw new SpeechError(
-        `Speech recognition service error: ${response.statusText}`,
-        response.status
+        "Local Whisper could not transcribe this audio.",
+        502
       );
     }
 
-    const data = (await response.json()) as { text: string };
+    const data = (await response.json()) as { text?: unknown };
     
-    if (!data.text || typeof data.text !== "string") {
+    if (typeof data.text !== "string") {
       throw new SpeechError("Invalid response from speech recognition service", 502);
     }
 
-    return jsonResponse({ transcript: data.text.trim() });
+    return jsonResponse({ transcript: data.text.trim(), model: "faster-whisper" });
 
   } catch (error) {
     if (error instanceof Error && error.name === "TimeoutError") {

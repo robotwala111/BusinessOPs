@@ -6,7 +6,8 @@
 
 - [ ] `AI_COPILOT_ENABLED=true` is set
 - [ ] AI provider is configured (OpenAI or Ollama)
-- [ ] `OPENAI_API_KEY` is set for Whisper speech-to-text
+- [ ] A private local Whisper service is configured through `WHISPER_BASE_URL` (browser recognition is only the fallback)
+- [ ] A private local Piper service is configured through `PIPER_BASE_URL` for reply playback
 - [ ] Supabase service role key is configured
 - [ ] Cost tracking rates are set correctly
 - [ ] Budget limits are appropriate for usage
@@ -43,6 +44,11 @@
 - [ ] Whisper transcription is accurate
 - [ ] Multi-language voice input works
 - [ ] Error handling for failed recordings
+
+#### Read Replies Aloud
+- [ ] Local Piper service is running and its voice models are available
+- [ ] English, Telugu, Hindi, and Malayalam replies play using their configured Piper voices
+- [ ] Other languages use an exact browser voice or show a clear unsupported-language message
 
 #### Analytics Queries
 - [ ] Today's sales query returns correct data
@@ -96,8 +102,11 @@ AI_DAILY_BUDGET_USD=5.00
 AI_MAX_REQUESTS_PER_HOUR=50
 AI_MAX_REQUEST_COST_USD=0.50
 
-# Speech-to-Text
-OPENAI_API_KEY=sk-proj-xxx-your-production-key
+# Local multilingual speech-to-text service (self-host beside the app)
+WHISPER_BASE_URL=http://127.0.0.1:8001/v1
+
+# Local Piper TTS service (self-host beside the app)
+PIPER_BASE_URL=http://127.0.0.1:8002
 
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
@@ -232,7 +241,7 @@ Set up alerts for:
 - **High Error Rate** - > 5% of requests failing
 - **Budget Exceeded** - Daily spending > threshold
 - **Slow Responses** - > 5 seconds average
-- **Failed Transcriptions** - Whisper API errors
+- **Failed Transcriptions** - Local Whisper service errors
 
 ### 3. Cost Monitoring
 
@@ -274,11 +283,10 @@ curl https://platform.openai.com/v1/usage \
 **Symptoms:** Whisper transcription errors
 
 **Solutions:**
-1. Verify OPENAI_API_KEY is valid
-2. Check account has credits
-3. Verify HTTPS is enabled (required for microphone)
-4. Check audio format compatibility
-5. Implement retry logic
+1. Verify the private Whisper service is running and the model finished loading.
+2. Verify `WHISPER_BASE_URL` points to its `/v1` endpoint.
+3. Verify HTTPS is enabled for browser microphone access.
+4. Check audio format compatibility and the 25 MB upload limit.
 
 ### Issue: High Error Rate
 

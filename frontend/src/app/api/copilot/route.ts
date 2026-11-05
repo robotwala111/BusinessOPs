@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { detectCopilotIntent, estimateAiCostUsd } from "@/lib/copilotTools";
 import { getCopilotFacts } from "@/services/copilotData";
 import { assertCopilotProviderConfigured, generateCopilotAnswer } from "@/services/copilotProvider";
-import type { CopilotMessage, CopilotConversation, CopilotRecord } from "@/types/copilot";
+import type { CopilotMessage, CopilotConversation, CopilotRecord, CopilotIntent } from "@/types/copilot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -216,15 +216,12 @@ export async function POST(request: Request) {
       throw new CopilotRouteError("Request body must be valid JSON.", 400);
     }
     if (!body || typeof body !== "object") throw new CopilotRouteError("Invalid request body.", 400);
-    const input = body as { message?: unknown; conversationId?: unknown };
+    const input = body as { message?: unknown; conversationId?: unknown; language?: unknown };
     if (typeof input.message !== "string" || input.message.trim().length < 2 || input.message.trim().length > 2000) {
       throw new CopilotRouteError("Enter a question between 2 and 2,000 characters.", 400);
     }
     const message = input.message.trim();
-    const intent = detectCopilotIntent(message);
-    if (!intent) {
-      throw new CopilotRouteError("I can answer questions about today's activities, overdue invoices, client follow-ups, pending quotations, delayed projects, monthly revenue and expenses, expiring contracts, or unresolved tickets.", 422);
-    }
+    const intent: CopilotIntent = detectCopilotIntent(message) ?? "assistant_status";
     if (input.conversationId != null && (typeof input.conversationId !== "string" || !uuidPattern.test(input.conversationId))) {
       throw new CopilotRouteError("Invalid conversation identifier.", 400);
     }
@@ -280,12 +277,15 @@ export async function POST(request: Request) {
       throw new CopilotRouteError("Unable to save this Copilot question.", 500);
     }
 
-    const facts = await getCopilotFacts(client, intent);
-    const history = (priorMessages ?? []).reverse().map((item) => ({
+    const facts = intent === "assistant_status"
+      ? { facts: {}, records: [] as CopilotRecord[] }
+      : await getCopilotFacts(client, intent);
+    const history = (intent === "assistant_status" ? [] : (priorMessages ?? []).reverse()).map((item) => ({
       role: item.role as "user" | "assistant",
       content: String(item.content).slice(0, 4000)
     }));
-    const result = await generateCopilotAnswer(message, facts.facts, history);
+    const language = typeof input.language === "string" ? input.language : undefined;
+    const result = await generateCopilotAnswer(message, facts.facts, history, language);
     const estimatedCost = estimateAiCostUsd(
       result.inputTokens,
       result.outputTokens,

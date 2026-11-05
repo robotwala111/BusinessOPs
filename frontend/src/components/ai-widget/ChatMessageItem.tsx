@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import type { CopilotMessage, CopilotRecord } from "@/types/copilot";
 import { detectTextSpeechLanguage, prepareTextForSpeech, findBestVoice } from "@/lib/speechLanguage";
@@ -12,6 +12,10 @@ interface ChatMessageItemProps {
 export function ChatMessageItem({ message }: ChatMessageItemProps) {
   const [copied, setCopied] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speechError, setSpeechError] = useState<string | null>(null);
+  const speechRequestRef = useRef(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
   const isUser = message.role === "user";
 
   const timeFormatted = new Date(message.created_at).toLocaleTimeString([], {
@@ -37,40 +41,92 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
     }
   };
 
-  const handleSpeak = () => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  const handleSpeak = async () => {
+    if (typeof window === "undefined") return;
 
     if (isSpeaking) {
-      window.speechSynthesis.cancel();
+      speechRequestRef.current += 1;
+      audioRef.current?.pause();
+      audioRef.current = null;
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
       setIsSpeaking(false);
       return;
     }
 
-    window.speechSynthesis.cancel();
+    const requestId = ++speechRequestRef.current;
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
 
     // Prepare clean conversational text without markdown formatting
     const cleanText = prepareTextForSpeech(message.content);
     if (!cleanText) return;
+    setSpeechError(null);
 
     // Detect the exact language (Telugu, Tamil, Hindi, Kannada, Malayalam, English, etc.)
-    const langInfo = detectTextSpeechLanguage(message.content);
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = langInfo.tag;
-    utterance.rate = 0.95;
-    utterance.pitch = 1.0;
-
-    // Match browser/system TTS voice for that exact language
-    const voices = window.speechSynthesis.getVoices();
-    const matchedVoice = findBestVoice(voices, langInfo);
-    if (matchedVoice) {
-      utterance.voice = matchedVoice;
-    }
-
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
     setIsSpeaking(true);
-    window.speechSynthesis.speak(utterance);
+    const langInfo = detectTextSpeechLanguage(message.content);
+    try {
+      const response = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: cleanText, language: langInfo.code }),
+        signal: AbortSignal.timeout(300000),
+      });
+
+      if (requestId !== speechRequestRef.current) return;
+      if (!response.ok) {
+        const data = await response.json().catch(() => null) as { error?: unknown } | null;
+        throw new Error(typeof data?.error === "string" ? data.error : "Local speech synthesis is unavailable.");
+      }
+
+      const audioUrl = URL.createObjectURL(await response.blob());
+      if (requestId !== speechRequestRef.current) {
+        URL.revokeObjectURL(audioUrl);
+        return;
+      }
+      audioUrlRef.current = audioUrl;
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+      const finish = () => {
+        if (requestId !== speechRequestRef.current) return;
+        setIsSpeaking(false);
+        audioRef.current = null;
+        if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+        audioUrlRef.current = null;
+      };
+      audio.onended = finish;
+      audio.onerror = finish;
+      await audio.play();
+    } catch (error) {
+      if (requestId !== speechRequestRef.current) return;
+      audioRef.current?.pause();
+      audioRef.current = null;
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+
+      // Use a browser voice only when it matches the detected language; never
+      // substitute an English voice for text in another language.
+      const matchedVoice = "speechSynthesis" in window
+        ? findBestVoice(await getAvailableSpeechVoices(window.speechSynthesis), langInfo)
+        : null;
+      if (matchedVoice && "speechSynthesis" in window) {
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = langInfo.tag;
+        utterance.voice = matchedVoice;
+        utterance.rate = 0.95;
+        utterance.onend = () => {
+          if (requestId === speechRequestRef.current) setIsSpeaking(false);
+        };
+        utterance.onerror = () => {
+          if (requestId === speechRequestRef.current) setIsSpeaking(false);
+        };
+        window.speechSynthesis.speak(utterance);
+      } else {
+        setIsSpeaking(false);
+        setSpeechError(error instanceof Error ? error.message : `No ${langInfo.name} voice is available.`);
+      }
+    }
   };
 
   return (
@@ -133,12 +189,11 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
                 )}
               </button>
 
-              {typeof window !== "undefined" && "speechSynthesis" in window && (
-                <button
+              <button
                   type="button"
                   className={`ai-bubble-action-btn ${isSpeaking ? "active-speaking" : ""}`}
                   onClick={handleSpeak}
-                  title={isSpeaking ? "Stop listening" : "Read aloud (Text-to-speech)"}
+                  title={isSpeaking ? "Stop speaking" : "Read message aloud"}
                   aria-label={isSpeaking ? "Stop speech" : "Read message aloud"}
                 >
                   {isSpeaking ? (
@@ -154,14 +209,32 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
                       <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
                     </svg>
                   )}
-                </button>
-              )}
+              </button>
             </div>
           )}
+          {speechError && !isUser && <span className="ai-bubble-speech-error" role="status">{speechError}</span>}
         </div>
       </div>
     </div>
   );
+}
+
+function getAvailableSpeechVoices(synthesis: SpeechSynthesis): Promise<SpeechSynthesisVoice[]> {
+  const voices = synthesis.getVoices();
+  if (voices.length > 0) return Promise.resolve(voices);
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      synthesis.removeEventListener("voiceschanged", finish);
+      resolve(synthesis.getVoices());
+    };
+    const timeoutId = window.setTimeout(finish, 1200);
+    synthesis.addEventListener("voiceschanged", finish, { once: true });
+  });
 }
 
 function formatMessageContent(content: string) {

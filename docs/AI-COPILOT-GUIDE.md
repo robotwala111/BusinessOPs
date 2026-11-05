@@ -6,7 +6,7 @@
 
 - **📊 Real-time Sales Analytics** - Today's sales, weekly trends, revenue analysis
 - **💰 Financial Intelligence** - Outstanding receivables, expense analysis, collection rates  
-- **🎤 Multi-language Voice Input** - Speak your questions in 11+ languages using OpenAI Whisper
+- **🎤 Multi-language Voice Input** - Transcribe speech locally with multilingual faster-whisper
 - **🌍 Multi-language Responses** - Get answers in Hindi, Telugu, Tamil, Malayalam, and more
 - **📈 Business Insights** - Top clients, delayed projects, pending quotations
 
@@ -29,15 +29,22 @@ Ask questions like:
 - **Payment Collection Status** - Monitor collection rates
 - **Revenue Breakdown** - By payment method, client, time period
 
-### Voice Input (Whisper API)
+### Voice Input (Free Local Whisper)
 
 - **Record your question** using the 🎤 microphone button
-- **Supports 11+ languages** including:
+- **Multilingual transcription** with automatic language detection across Whisper's supported languages, including:
   - English, Hindi, Telugu, Tamil
   - Malayalam, Kannada, Marathi
   - Bengali, Gujarati, Arabic, Spanish
-- **Automatic transcription** using OpenAI Whisper
+- **Local transcription** using faster-whisper; no paid API key or audio upload to a cloud provider
 - **Works in any browser** with microphone access
+
+### Read Replies Aloud (Free Local Piper)
+
+- The message speaker uses local Piper voices for English, Hindi, Telugu, and Malayalam.
+- Tamil, Kannada, and other languages use the browser only when it has an exact matching voice installed; the app never silently substitutes an English voice.
+- Install the voices and start the service using [backend/piper/README.md](../backend/piper/README.md), then set `PIPER_BASE_URL=http://127.0.0.1:8002` in `frontend/.env.local`.
+- Piper is text-to-speech. Local Whisper remains the separate microphone speech-to-text service.
 
 ### Multi-language Support
 
@@ -55,7 +62,7 @@ Select your preferred response language:
 
 - Node.js 18+ and npm
 - Supabase project configured
-- OpenAI API key (for Whisper speech-to-text)
+- Python 3.10+ for the optional local Whisper service
 
 ### 2. Environment Configuration
 
@@ -72,6 +79,12 @@ AI_BASE_URL=http://localhost:11434/v1
 AI_INPUT_COST_PER_MILLION_USD=0
 AI_OUTPUT_COST_PER_MILLION_USD=0
 
+# Free local multilingual speech-to-text (run backend/whisper first)
+WHISPER_BASE_URL=http://127.0.0.1:8001/v1
+
+# Free local Piper speech output (run backend/piper first)
+PIPER_BASE_URL=http://127.0.0.1:8002
+
 # For OpenAI GPT (paid, more accurate)
 # AI_API_KEY=sk-your-api-key
 # AI_MODEL=gpt-4o-mini
@@ -84,18 +97,17 @@ AI_DAILY_BUDGET_USD=2
 AI_MAX_REQUESTS_PER_HOUR=20
 AI_MAX_REQUEST_COST_USD=0.25
 
-# Speech-to-Text (OpenAI Whisper)
-OPENAI_API_KEY=sk-your-openai-api-key-here
 ```
 
-### 3. Get OpenAI API Key
+Start the local Whisper service using [backend/whisper/README.md](../backend/whisper/README.md) for microphone transcription. Start Piper using [backend/piper/README.md](../backend/piper/README.md) for reading replies aloud. Both run locally after their one-time model downloads.
 
-1. Go to [https://platform.openai.com/api-keys](https://platform.openai.com/api-keys)
-2. Create a new API key
-3. Add credits to your account ($5 minimum)
-4. Copy the key to `OPENAI_API_KEY` in `.env`
+### 3. Start Local Whisper
 
-**Cost:** Whisper API costs ~$0.006 per minute of audio (very affordable)
+Follow the setup in [backend/whisper/README.md](../backend/whisper/README.md), then set `WHISPER_BASE_URL=http://127.0.0.1:8001/v1` in `frontend/.env.local` and restart Next.js. The multilingual model is downloaded once and runs on your machine; no transcription API key is needed.
+
+### 4. Start Local Piper TTS
+
+Follow [backend/piper/README.md](../backend/piper/README.md) to install Piper and download voice files, then start the service on port 8002. Set `PIPER_BASE_URL=http://127.0.0.1:8002` and restart Next.js. It reads replies aloud and does not replace Whisper transcription.
 
 ### 4. Apply Database Migrations
 
@@ -221,24 +233,23 @@ Voice input works in these languages:
 
 ## 🐛 Troubleshooting
 
-### "OpenAI API key not configured"
+### "Local Whisper is not configured"
 
-**Problem:** Speech-to-text fails with configuration error
+**Problem:** Speech-to-text cannot reach the local transcription engine.
 
 **Solution:**
-1. Add `OPENAI_API_KEY=sk-...` to `frontend/.env`
-2. Restart the development server
-3. Ensure API key is valid and has credits
+1. Start the service in `backend/whisper` using its README instructions.
+2. Set `WHISPER_BASE_URL=http://127.0.0.1:8001/v1` in `frontend/.env.local`.
+3. Restart the Next.js development server.
 
 ### "Speech recognition service error"
 
-**Problem:** Whisper API returns error
+**Problem:** Local Whisper cannot decode or transcribe the audio.
 
 **Solution:**
-1. Check OpenAI API key validity
-2. Verify account has credits ($5 minimum)
-3. Check audio format (should be webm/opus)
-4. Try shorter audio clips (under 1 minute)
+1. Confirm the local Whisper service is running and its model finished loading.
+2. Check that the microphone recording is not empty and is under 25 MB.
+3. Try a shorter clip in a quiet environment.
 
 ### "Microphone access denied"
 
@@ -291,11 +302,11 @@ Voice input works in these languages:
 
 ## 📈 Performance Optimization
 
-### Whisper API
+### Local Whisper
 
-- **Average transcription time:** 2-5 seconds
-- **Cost per query:** $0.006 per minute
-- **Recommended:** Keep recordings under 30 seconds
+- **Cost:** No per-minute transcription fee; it uses local CPU/GPU resources.
+- **First startup:** Downloads model weights once.
+- **Recommended:** Keep recordings concise for quicker local transcription.
 
 ### AI Model
 

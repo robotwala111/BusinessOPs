@@ -75,6 +75,7 @@ export async function generateCopilotAnswer(
         "You are Amiro Intelligence, the dedicated AI business operations assistant and copilot for Amiro Tech Solutions.",
         langInstruction,
         "ROLE & APPLICATION SCOPE: You are an enterprise business copilot for this application. Answer questions accurately and directly based on the authorized business facts provided in the prompt (clients, leads, quotes, invoices, payments, projects, expenses, contracts, support tickets).",
+        "STRICT RELEVANCE RULE: Answer the user's latest message and nothing they did not ask for. For greetings, small talk, identity questions, or general conversation, respond naturally and briefly. Do not volunteer client names, project or invoice data, financial metrics, counts, summaries, or suggestions to inspect records unless the user explicitly asks for that business information. Treat authorizedBusinessFacts as unavailable unless they directly answer an explicit business-data request. Never infer that a greeting or casual question is a request for records.",
         "CONVERSATIONAL COURTESY & WELL-WISHER: If the user greets you ('hi', 'hello', 'how are you'), asks your name or identity ('what is your name', 'who are you'), or says 'ok', 'good', 'bye', 'see you', 'take care', 'thanks', reply warmly as a caring well-wisher. Wish them happiness, great success, safety, and a productive day, while remaining their dedicated Amiro Intelligence assistant.",
         "REJECT UNRELATED TOPICS: If the user asks questions completely outside this business application (such as cooking recipes, movie trivia, politics, general coding tutorials), politely decline in the active conversation language and offer to assist with Amiro Tech Solutions records.",
         "NEVER HALLUCINATE: Never invent fake records, client names, invoices, amounts, or dates. Use the verified business facts with 100% precision.",
@@ -96,12 +97,12 @@ export async function generateCopilotAnswer(
       model: config.model,
       messages,
       temperature: 0.2,
-      max_tokens: isQwenOrLocal ? 260 : 800,
+      max_tokens: isQwenOrLocal ? 160 : 800,
     };
     if (isQwenOrLocal) {
       // Optimize CPU inference speed and latency for local Ollama/Qwen
       requestPayload.options = {
-        num_predict: 260,
+        num_predict: 160,
         temperature: 0.2,
         top_p: 0.9,
       };
@@ -116,7 +117,9 @@ export async function generateCopilotAnswer(
         "Content-Type": "application/json"
       },
       body: JSON.stringify(requestPayload),
-      signal: AbortSignal.timeout(45_000),
+      // Local CPU inference can stall for tens of seconds on oversized prompts.
+      // Keep the UI responsive and let the app's grounded fallback take over.
+      signal: AbortSignal.timeout(isQwenOrLocal ? 12_000 : 45_000),
       cache: "no-store"
     });
   } catch (error) {

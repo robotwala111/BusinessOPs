@@ -131,6 +131,26 @@ export function detectQuestionLanguage(text: string, preferred?: string): Suppor
 
 export type WellWisherType = "farewell" | "agreement" | "appreciation" | "gratitude";
 
+function getCheckInReply(lang: SupportedLanguage) {
+  const replies: Partial<Record<SupportedLanguage, string>> = {
+    te: "నేను బాగున్నాను, ధన్యవాదాలు! 😊 మీకు ఎలా సహాయం చేయగలను?",
+    hi: "मैं अच्छा हूँ, धन्यवाद! 😊 आज मैं आपकी कैसे मदद कर सकता हूँ?",
+    kn: "ನಾನು ಚೆನ್ನಾಗಿದ್ದೇನೆ, ಧನ್ಯವಾದಗಳು! 😊 ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?",
+    ta: "நான் நன்றாக இருக்கிறேன், நன்றி! 😊 இன்று உங்களுக்கு எப்படி உதவலாம்?",
+    ml: "എനിക്ക് സുഖമാണ്, നന്ദി! 😊 ഇന്ന് നിങ്ങളെ എങ്ങനെ സഹായിക്കാം?",
+    mr: "मी छान आहे, धन्यवाद! 😊 आज मी तुम्हाला कशी मदत करू?",
+    bn: "আমি ভালো আছি, ধন্যবাদ! 😊 আজ আপনাকে কীভাবে সাহায্য করতে পারি?",
+    gu: "હું મજામાં છું, આભાર! 😊 આજે હું તમને કેવી રીતે મદદ કરું?",
+    ar: "أنا بخير، شكراً! 😊 كيف يمكنني مساعدتك اليوم?",
+    es: "Estoy bien, ¡gracias! 😊 ¿Cómo puedo ayudarte hoy?"
+  };
+  return replies[lang] ?? "I’m doing well, thanks for asking! 😊 How can I help you today?";
+}
+
+function isCheckIn(question: string) {
+  return /^(how\s+are\s+you|how\s+r\s+u|how're\s+you|how\s+do\s+you\s+do|are\s+you\s+okay|ನೀವು\s+ಹೇಗಿದ್ದೀರಿ|நீங்கள்\s+எப்படி\s+இருக்கிறீர்கள்|మీరు\s+ఎలా\s+ఉన్నారు|ఎలా\s+ఉన్నారు|कैसे\s+हो|आप\s+कैसे\s+हैं|സുഖമാണോ|നിങ്ങൾ\s+എങ്ങനെയുണ്ട്|તમે\s+કેમ\s+છો|كيف\s+حالك)[؟?!.\s]*$/i.test(question.trim());
+}
+
 export function detectWellWisherIntent(question: string): WellWisherType | null {
   const trimmed = question.trim().toLowerCase();
 
@@ -335,6 +355,22 @@ export async function askAmiroIntelligenceDemo(
   const clientMap = new Map(clients.map((c) => [c.id, c.company_name]));
   const intent = detectCopilotIntent(question);
 
+  // Resolve casual check-ins directly so no business context can influence the reply.
+  if (isCheckIn(question)) {
+    const assistantMessage: CopilotMessage = {
+      id: `msg-${Date.now()}-a`,
+      role: "assistant",
+      content: getCheckInReply(lang),
+      records: [],
+      created_at: new Date().toISOString()
+    };
+    const title = existingConv?.title || (question.length > 28 ? `${question.slice(0, 28)}...` : question);
+    const updatedConv: CopilotConversation = { id: convId, title, updated_at: now, language: lang };
+    saveDemoConversation(updatedConv);
+    saveDemoMessages(convId, [...getDemoMessages(convId), userMessage, assistantMessage]);
+    return { conversation: updatedConv, userMessage, assistantMessage };
+  }
+
   let answer = "";
   const records: CopilotRecord[] = [];
 
@@ -466,10 +502,51 @@ export async function askAmiroIntelligenceDemo(
     }))
   };
 
+  // Keep each model request grounded in only the records the user asked about.
+  // Sending the entire workspace bloats local-model prompts and slows inference.
+  const factsForQuestion = (() => {
+    switch (intent) {
+      case "company_brief":
+        return { company: businessFacts.company, metrics: { totalClients: businessFacts.metrics.totalClients, activeClients: businessFacts.metrics.activeClients } };
+      case "clients_overview":
+        return { clients: businessFacts.clients.slice(0, 12), totalClients: businessFacts.metrics.totalClients, activeClients: businessFacts.metrics.activeClients };
+      case "active_projects":
+        return { projects: businessFacts.projects.slice(0, 12) };
+      case "delayed_projects":
+        return { delayedProjects: businessFacts.delayedProjects.slice(0, 12), count: businessFacts.metrics.delayedProjectsCount };
+      case "overdue_invoices":
+        return { overdueInvoices: businessFacts.overdueInvoices.slice(0, 12), count: businessFacts.metrics.overdueInvoicesCount, currency: businessFacts.currency };
+      case "invoices_overview":
+        return { invoices: businessFacts.invoices.slice(0, 12), count: businessFacts.metrics.totalInvoices, currency: businessFacts.currency };
+      case "outstanding_receivables":
+        return { invoices: businessFacts.invoices.filter((invoice) => Number(invoice.balanceDue) > 0).slice(0, 12), currency: businessFacts.currency };
+      case "pending_quotations":
+        return { pendingQuotations: businessFacts.pendingQuotations.slice(0, 12), count: businessFacts.metrics.pendingQuotationsCount, currency: businessFacts.currency };
+      case "quotations_overview":
+        return { quotations: businessFacts.quotations.slice(0, 12), currency: businessFacts.currency };
+      case "expiring_contracts":
+        return { contracts: businessFacts.contracts.slice(0, 12), count: businessFacts.metrics.expiringContractsCount };
+      case "unresolved_tickets":
+        return { tickets: businessFacts.tickets.slice(0, 12), count: businessFacts.metrics.openTicketsCount };
+      case "monthly_financials":
+      case "today_sales":
+      case "weekly_sales":
+      case "monthly_sales_trend":
+      case "revenue_analysis":
+      case "expense_analysis":
+      case "payment_collection_status":
+        return { asOf: businessFacts.asOf, currency: businessFacts.currency, metrics: businessFacts.metrics };
+      case "top_clients_by_revenue":
+        return { clients: businessFacts.clients.slice(0, 12), currency: businessFacts.currency };
+      default:
+        return {};
+    }
+  })();
+
   // Attempt live LLM inference (e.g. Qwen via local Ollama or API) for dynamic, non-hardcoded answers
   let llmAnswer: string | null = null;
   try {
-    const prior = getDemoMessages(convId).slice(-4).map((m) => ({
+    const prior = (intent && intent !== "assistant_status" ? getDemoMessages(convId).slice(-4) : []).map((m) => ({
       role: m.role as "user" | "assistant",
       content: m.content
     }));
@@ -482,7 +559,7 @@ export async function askAmiroIntelligenceDemo(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message: question,
-        facts: businessFacts,
+        facts: factsForQuestion,
         history: prior,
         language: lang
       }),
