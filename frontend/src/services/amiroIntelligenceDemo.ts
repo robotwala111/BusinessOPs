@@ -367,33 +367,6 @@ export async function askAmiroIntelligenceDemo(
     };
   }
 
-  // 2. Immediate Well-Wisher Response for "ok", "good", "bye", "thanks"
-  const wellWisherType = detectWellWisherIntent(question);
-  if (wellWisherType) {
-    answer = getWellWisherResponse(wellWisherType, lang);
-    const assistantMessage: CopilotMessage = {
-      id: `msg-${Date.now()}-a`,
-      role: "assistant",
-      content: answer,
-      records: [],
-      created_at: new Date().toISOString()
-    };
-    const title = existingConv?.title || (question.length > 28 ? `${question.slice(0, 28)}...` : question);
-    const updatedConv: CopilotConversation = {
-      id: convId,
-      title,
-      updated_at: now,
-      language: lang
-    };
-    saveDemoConversation(updatedConv);
-    saveDemoMessages(convId, [...getDemoMessages(convId), userMessage, assistantMessage]);
-    return {
-      conversation: updatedConv,
-      userMessage,
-      assistantMessage
-    };
-  }
-
   // Compile business facts package for the LLM
   const overdueInvoices = invoices.filter(
     (inv) =>
@@ -493,43 +466,39 @@ export async function askAmiroIntelligenceDemo(
     }))
   };
 
-  const isPureGreeting = /^(hi|hello|hey|namaste|vanakkam|namaskar|hola|నమస్తే|నమస్కారం|नमस्ते|ನಮಸ್ಕಾರ|வணக்கம்|നമസ്കാരം)$/i.test(question.trim());
-
-  // Attempt live LLM inference (e.g. Qwen 2.5 via Ollama/OpenRouter/API) if configured on server
+  // Attempt live LLM inference (e.g. Qwen via local Ollama or API) for dynamic, non-hardcoded answers
   let llmAnswer: string | null = null;
-  if (!isPureGreeting) {
-    try {
-      const prior = getDemoMessages(convId).slice(-4).map((m) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content
-      }));
+  try {
+    const prior = getDemoMessages(convId).slice(-4).map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content
+    }));
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 35000);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 35000);
 
-      const response = await fetch("/api/copilot/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: question,
-          facts: businessFacts,
-          history: prior,
-          language: lang
-        }),
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
+    const response = await fetch("/api/copilot/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: question,
+        facts: businessFacts,
+        history: prior,
+        language: lang
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
 
-      if (response.ok) {
-        const payload = await response.json();
-        if (payload && typeof payload.answer === "string" && !payload.fallback && payload.answer.trim()) {
-          llmAnswer = payload.answer.trim();
-        }
+    if (response.ok) {
+      const payload = await response.json();
+      if (payload && typeof payload.answer === "string" && !payload.fallback && payload.answer.trim()) {
+        llmAnswer = payload.answer.trim();
       }
-    } catch {
-      // If backend LLM endpoint unreachable or slow, seamlessly fall back to local multilingual synthesis
-      llmAnswer = null;
     }
+  } catch {
+    // If backend LLM endpoint unreachable or slow, seamlessly fall back to local multilingual synthesis
+    llmAnswer = null;
   }
 
   // Populate records shortcut cards based on identified intent
@@ -631,8 +600,13 @@ export async function askAmiroIntelligenceDemo(
   if (llmAnswer) {
     answer = llmAnswer;
   } else {
-    // Built-in Multilingual Grounded Synthesis Engine (Hindi, Telugu, Tamil, Spanish, Hinglish, English)
-    switch (intent) {
+    // When LLM is offline or times out, check well-wisher response first
+    const wellWisherType = detectWellWisherIntent(question);
+    if (wellWisherType) {
+      answer = getWellWisherResponse(wellWisherType, lang);
+    } else {
+      // Built-in Multilingual Grounded Synthesis Engine (Hindi, Telugu, Tamil, Spanish, Hinglish, English)
+      switch (intent) {
       case "fill_client_form": {
         if (lang === "ml") {
           answer = `### ✨ എന്റർപ്രൈസ് പ്രൊഫൈൽ തയ്യാറാക്കി — ഓട്ടോ-ഫിൽ ലഭ്യമാണ്!\n\n` +
@@ -1588,6 +1562,7 @@ export async function askAmiroIntelligenceDemo(
       }
     }
   }
+}
 
   const assistantMessage: CopilotMessage = {
     id: `msg-${Date.now()}-a`,

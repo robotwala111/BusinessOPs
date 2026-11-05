@@ -8,12 +8,10 @@ export type ProviderResult = {
 };
 
 function providerConfiguration() {
-  const apiKey = process.env.AI_API_KEY?.trim() || "";
-  const model = process.env.AI_MODEL?.trim();
-  const baseUrl = (process.env.AI_BASE_URL?.trim() || "https://api.openai.com/v1").replace(/\/+$/, "");
-  if (!model) {
-    throw new Error("AI is not configured. Set AI_MODEL on the server.");
-  }
+  const apiKey = process.env.AI_API_KEY?.trim() || "ollama";
+  const model = process.env.AI_MODEL?.trim() || "qwen2.5:1.5b";
+  const defaultBaseUrl = (apiKey && apiKey !== "ollama") ? "https://api.openai.com/v1" : "http://127.0.0.1:11434/v1";
+  const baseUrl = (process.env.AI_BASE_URL?.trim() || defaultBaseUrl).replace(/\/+$/, "");
 
   let url: URL;
   try {
@@ -32,13 +30,7 @@ function providerConfiguration() {
     throw new Error("AI_BASE_URL must use HTTPS.");
   }
 
-  // Local Ollama, LM Studio, or local Qwen engines don't require an explicit external API key
-  const effectiveApiKey = apiKey || (isLocal ? "ollama" : "");
-  if (!effectiveApiKey && !isLocal) {
-    throw new Error("AI is not configured. Set AI_API_KEY and AI_MODEL on the server.");
-  }
-
-  return { apiKey: effectiveApiKey, model, url: `${baseUrl}/chat/completions` };
+  return { apiKey, model, url: `${baseUrl}/chat/completions` };
 }
 
 export function assertCopilotProviderConfigured() {
@@ -69,8 +61,8 @@ export async function generateCopilotAnswer(
   const isQwenOrLocal = config.model.toLowerCase().includes("qwen") || config.url.includes("localhost") || config.url.includes("127.0.0.1");
 
   const langInstruction = preferredLanguage && preferredLanguage !== "auto" && LANGUAGE_NAMES[preferredLanguage]
-    ? `CRITICAL - MANDATORY LANGUAGE LOCK: The conversation is locked to ${LANGUAGE_NAMES[preferredLanguage]}. You MUST respond exclusively in ${LANGUAGE_NAMES[preferredLanguage]}. Do NOT transfer, drift, or switch to English or any other language under any circumstance, even if the user asks a short question or mixes in English terms. Keep the entire conversation strictly in ${LANGUAGE_NAMES[preferredLanguage]}.`
-    : "CRITICAL - MULTILINGUAL TEXT-TO-TEXT: You must understand and answer in the EXACT SAME LANGUAGE as the user's question. If the user asks in Hindi (हिंदी), reply in clear Hindi. If the user asks in Telugu (తెలుగు), reply in Telugu. If the user asks in Tamil (தமிழ்), reply in Tamil. If the user asks in Malayalam (മലയാളം), reply in Malayalam. If the user asks in Kannada (ಕನ್ನಡ), reply in Kannada. If the user asks in Spanish (español), reply in Spanish. If the user asks in English or Hinglish, reply in that natural language.";
+    ? `CRITICAL - MANDATORY LANGUAGE LOCK: The user has selected ${LANGUAGE_NAMES[preferredLanguage]} for this session. You MUST reply exclusively and entirely in ${LANGUAGE_NAMES[preferredLanguage]}. Even if the user asks their question in English (for example 'what your name', 'hello', 'how are you', 'who are you', 'ok', 'good', 'bye', or 'show invoices'), you must reply ONLY in ${LANGUAGE_NAMES[preferredLanguage]}. Under no circumstances should you revert to English.`
+    : "CRITICAL - MULTILINGUAL TEXT-TO-TEXT: You must understand and answer in the EXACT SAME LANGUAGE as the user's question. If the user asks in Hindi (हिंदी), reply in clear Hindi. If the user asks in Telugu (తెలుగు), reply in Telugu. If the user asks in Tamil (தமிழ்), reply in Tamil. If the user asks in Malayalam (മലയാളം), reply in Malayalam. If the user asks in Kannada (ಕನ್ನಡ), reply in Kannada. If the user asks in Marathi (मराठी), reply in Marathi. If the user asks in Bengali (বাংলা), reply in Bengali. If the user asks in Gujarati (ગુજરાતી), reply in Gujarati. If the user asks in Arabic (العربية), reply in Arabic. If the user asks in English or Hinglish, reply in that natural language.";
 
   const formatInstruction = isQwenOrLocal
     ? "Answer directly, accurately, and concisely in natural markdown. Do not wrap your response in JSON unless specifically requested."

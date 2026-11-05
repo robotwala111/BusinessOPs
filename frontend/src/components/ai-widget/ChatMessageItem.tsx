@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { CopilotMessage, CopilotRecord } from "@/types/copilot";
+import { detectTextSpeechLanguage, prepareTextForSpeech, findBestVoice } from "@/lib/speechLanguage";
 
 interface ChatMessageItemProps {
   message: CopilotMessage;
@@ -46,9 +47,25 @@ export function ChatMessageItem({ message }: ChatMessageItemProps) {
     }
 
     window.speechSynthesis.cancel();
-    const cleanText = message.content.replace(/[#*•_`]/g, "");
+
+    // Prepare clean conversational text without markdown formatting
+    const cleanText = prepareTextForSpeech(message.content);
+    if (!cleanText) return;
+
+    // Detect the exact language (Telugu, Tamil, Hindi, Kannada, Malayalam, English, etc.)
+    const langInfo = detectTextSpeechLanguage(message.content);
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 1.0;
+    utterance.lang = langInfo.tag;
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
+
+    // Match browser/system TTS voice for that exact language
+    const voices = window.speechSynthesis.getVoices();
+    const matchedVoice = findBestVoice(voices, langInfo);
+    if (matchedVoice) {
+      utterance.voice = matchedVoice;
+    }
+
     utterance.onend = () => setIsSpeaking(false);
     utterance.onerror = () => setIsSpeaking(false);
 

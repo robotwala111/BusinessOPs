@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
-    if (process.env.AI_COPILOT_ENABLED !== "true") {
+    if (process.env.AI_COPILOT_ENABLED === "false") {
       return NextResponse.json({ fallback: true, reason: "AI_COPILOT_ENABLED is false" }, { status: 200 });
     }
 
