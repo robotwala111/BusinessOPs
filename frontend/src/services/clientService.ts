@@ -1,4 +1,3 @@
-import { isSupabaseConfigured, supabase } from "@/lib/supabase/client";
 import type {
   Client,
   ClientCreateInput,
@@ -14,12 +13,16 @@ function clearClientCache() {
   clientsCache = null;
 }
 
-function requireSupabase() {
-  if (!supabase) {
-    throw new Error("Supabase environment variables are not configured.");
+async function localRequest<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    ...init,
+    headers: { "Content-Type": "application/json", ...init?.headers },
+  });
+  if (!response.ok) {
+    const result = await response.json().catch(() => null);
+    throw new Error(result?.error ?? `Local PostgreSQL request failed (${response.status}).`);
   }
-
-  return supabase;
+  return response.status === 204 ? undefined as T : response.json() as Promise<T>;
 }
 
 function normalizeClientPayload<T extends Partial<ClientFormData>>(data: T) {
@@ -53,169 +56,50 @@ export const clientService = {
       return clientsCache;
     }
 
-    if (!isSupabaseConfigured) {
-      clientsCache = readDemoClients().sort((a, b) =>
-        b.created_at.localeCompare(a.created_at)
-      );
-      return clientsCache;
+    clientsCache = await localRequest<Client[]>("/api/clients");
+    if (clientsCache.length === 0) {
+      const legacyClients = readDemoClients();
+      if (legacyClients.length) {
+        await localRequest("/api/clients/import-demo", {
+          method: "POST",
+          body: JSON.stringify(legacyClients),
+        });
+        clientsCache = await localRequest<Client[]>("/api/clients");
+        window.localStorage.removeItem(DEMO_CLIENTS_STORAGE_KEY);
+      }
     }
-
-    const { data, error } = await requireSupabase()
-      .from("clients")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      throw error;
-    }
-
-    clientsCache = data as Client[];
     return clientsCache;
   },
 
   async getClientById(id: string) {
-    if (!isSupabaseConfigured) {
-      return readDemoClients().find((client) => client.id === id) ?? null;
-    }
-
-    const { data, error } = await requireSupabase()
-      .from("clients")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (error) {
-      throw error;
-    }
-
-    return data as Client;
+    return localRequest<Client>(`/api/clients/${encodeURIComponent(id)}`);
   },
 
   async createClient(data: ClientCreateInput) {
     const payload = normalizeClientPayload(data);
 
-    if (!isSupabaseConfigured) {
-      const now = new Date().toISOString();
-      const client: Client = {
-        id: crypto.randomUUID(),
-        company_name: data.company_name.trim(),
-        client_short_name: data.client_short_name || null,
-        contact_person: data.contact_person || null,
-        email: data.email || null,
-        phone: data.phone || null,
-        gst_number: data.gst_number || null,
-        pan_number: data.pan_number || null,
-        address: data.address || null,
-        city: data.city || null,
-        state: data.state || null,
-        country: data.country || "India",
-        industry: data.industry || null,
-        lead_source: data.lead_source || null,
-        status: data.status,
-        notes: data.notes || null,
-        account_owner: data.account_owner || null,
-        payment_terms: data.payment_terms || null,
-        archived_at: null,
-        archived_by: null,
-        updated_by: data.created_by,
-        created_by: data.created_by,
-        created_at: now,
-        updated_at: now
-      };
-
-      writeDemoClients([client, ...readDemoClients()]);
-      clearClientCache();
-      return client;
-    }
-
-    const { data: createdClient, error } = await requireSupabase()
-      .from("clients")
-      .insert(payload)
-      .select()
-      .single();
-
-    if (error) {
-      throw error;
-    }
-
+    const createdClient = await localRequest<Client>("/api/clients", { method: "POST", body: JSON.stringify(payload) });
     clearClientCache();
-    return createdClient as Client;
+    return createdClient;
   },
 
   async updateClient(id: string, data: ClientUpdateInput) {
     const payload = normalizeClientPayload(data);
 
-    if (!isSupabaseConfigured) {
-      const clients = readDemoClients();
-      const updatedClients = clients.map((client) =>
-        client.id === id
-          ? {
-              ...client,
-              ...payload,
-              updated_at: new Date().toISOString()
-            }
-          : client
-      ) as Client[];
-      const updatedClient =
-        updatedClients.find((client) => client.id === id) ?? null;
-
-      writeDemoClients(updatedClients);
-      clearClientCache();
-      return updatedClient;
-    }
-
-    const { data: updatedClient, error } = await requireSupabase()
-      .from("clients")
-      .update({
-        ...payload,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", id)
-      .select()
-      .single();
-
-    if (error) {
-      throw error;
-    }
-
+    const updatedClient = await localRequest<Client>(`/api/clients/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(payload) });
     clearClientCache();
-    return updatedClient as Client;
+    return updatedClient;
   },
 
   async deleteClient(id: string) {
-    if (!isSupabaseConfigured) {
-      writeDemoClients(readDemoClients().filter((client) => client.id !== id));
-      clearClientCache();
-      return;
-    }
-
-    const { error } = await requireSupabase()
-      .from("clients")
-      .delete()
-      .eq("id", id);
-
-    if (error) {
-      throw error;
-    }
-
+    await localRequest<void>(`/api/clients/${encodeURIComponent(id)}`, { method: "DELETE" });
     clearClientCache();
   }
   ,
   async archiveClient(id: string, userId: string | null) {
     const archivedAt = new Date().toISOString();
-    if (!isSupabaseConfigured) {
-      const existing = readDemoClients().find((item) => item.id === id);
-      if (!existing) throw new Error("Client not found.");
-      writeDemoClients(readDemoClients().map((item) => item.id === id
-        ? { ...item, status: "archived", archived_at: archivedAt, archived_by: userId,
-            updated_by: userId, updated_at: archivedAt }
-        : item));
-      clearClientCache();
-    } else {
-      const { error } = await requireSupabase().from("clients").update({ status: "archived",
-        archived_at: archivedAt, archived_by: userId, updated_by: userId }).eq("id", id);
-      if (error) throw error;
-    }
+    await localRequest<Client>(`/api/clients/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ status: "archived", archived_at: archivedAt, archived_by: userId, updated_by: userId }) });
+    clearClientCache();
     await historyService.record({ entity_type: "client", entity_id: id, event_type: "archived",
       previous_value: null, new_value: { status: "archived" }, description: "Client archived",
       actor_id: userId, metadata: {} });

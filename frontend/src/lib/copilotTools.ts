@@ -1,7 +1,39 @@
 import type { CopilotIntent } from "@/types/copilot";
 
 const intentPatterns: Array<[CopilotIntent, RegExp]> = [
-  // 1. High-priority specific queries
+  // 1. High-priority specific queries - SALES & ANALYTICS
+  [
+    "today_sales",
+    /\b(today|today's|todays|आज|आज का|ఈరోజు|இன்றைய|ഇന്നത്തെ|ಇಂದಿನ|आजचा|আজকের|આજનું)\b.*(sales?|revenue|income|collection|payment|earnings|बिक्री|विक्री|అమ్మకాలు|விற்பனை|വിൽപ്പന|ಮಾರಾಟ|विक्री|বিক্রয়|વેચાણ|المبيعات|राजस्व|ఆదాయం|வருமானம்|വരുമാനം|ಆದಾಯ|उत्पन्न|আয়|આવક|الإيرادات)|\b(what|how much|kitna|कितना|ఎంత|எவ்வளவு|എത്ര|ಎಷ್ಟು|किती|কত|કેટલું|كم).*(today|आज|ఈరోజు|இன்று|ഇന്ന്|ಇಂದು|आज|আজ|આજે|اليوم).*(sales?|revenue|income|earned|collected|बिक्री|విక్రయాలు|விற்பனை)/i
+  ],
+  [
+    "weekly_sales",
+    /\b(week|weekly|this week|past week|last week|सप्ताह|వారం|வாரம்|ആഴ്ച|ವಾರ|आठवडा|সপ্তাহ|અઠવાડિયું|أسبوع).*(sales?|revenue|income|performance|trend|बिक्री|విక్రయాలు|விற்பனை|വിൽപ്പന|ಮಾರಾಟ|विक्री|বিক্রয়|વેચાણ|المبيعات)/i
+  ],
+  [
+    "monthly_sales_trend",
+    /\b(monthly|month|this month|मासिक|महीने|నెల|నెలవారీ|மாதம்|மாதாந்திர|മാസം|മാസികം|ತಿಂಗಳು|महिना|মাসিক|મહિનો|شهر).*(sales?|revenue|trend|growth|pattern|performance|बिक्री|विक्री|అమ్మకాలు|விற்பனை|വിൽപ്പന|ಮಾರಾಟ|विक्री|বিক্রয়|વેચાણ|المبيعات)/i
+  ],
+  [
+    "revenue_analysis",
+    /\b(revenue|income|earnings|राजस्व|आय|ఆదాయం|வருமானம்|വരുമാനം|ಆದಾಯ|उत्पन्न|আয়|આવક|الإيرادات).*(analysis|breakdown|summary|report|details|distribution|विश्लेषण|విశ్లేషణ|பகுப்பாய்வு|വിശകലനം|ವಿಶ್ಲೇಷಣೆ|विश्लेषण|বিশ্লেষণ|વિશ્લેષણ|تحليل)/i
+  ],
+  [
+    "top_clients_by_revenue",
+    /\b(top|best|highest|leading|शीर्ष|మంచి|சிறந்த|മികച്ച|ಉತ್ತಮ|सर्वोत्तम|সেরা|શ્રેષ્ઠ|أفضل|प्रमुख|ప్రధాన).*(clients?|customers?|accounts?|क्लाइंट|ग్राహకులు|வாடிக்கையாளர்கள்|ഉപഭോക്താക്കൾ|ಗ್ರಾಹಕರು|ग्राहक|ক্লায়েন্ট|ગ્રાહકો|العملاء).*(revenue|income|sales|payment|राजस्व|ఆదాయం|வருமானம்|വരുമാനം|ಆದಾಯ|उत्पन्न|আয়|આવક|الإيرادات)/i
+  ],
+  [
+    "outstanding_receivables",
+    /\b(outstanding|pending|due|unpaid|receivable|बकाया|పెండింగ్|బాకీ|நிலுவை|കുടിശ്ശിക|ಬಾಕಿ|थकबाकी|বকেয়া|બાકી|مستحق|लंबित|బాకీ).*(receivables?|payments?|amounts?|invoices?|dues|money|राशि|చెల్లింపులు|தொகைகள்|തുകകൾ|ಮೊತ್ತಗಳು|रक्कम|টাকা|રકમ|مبالغ)/i
+  ],
+  [
+    "expense_analysis",
+    /\b(expense|expenses|expenditure|spending|खर्च|ఖర్చు|செலவு|ചെലവ്|ವೆಚ್ಚ|खर्च|খরচ|ખર્ચ|نفقات).*(analysis|breakdown|summary|report|category|विश्लेषण|విశ్లేషణ|பகுப்பாய்வு|വിശകലനം|ವಿಶ್ಲೇಷಣೆ|विश्लेषण|বিশ্লেষণ|વિશ્લેષણ|تحليل)/i
+  ],
+  [
+    "payment_collection_status",
+    /\b(payment|collection|recovery|भुगतान|చెల్లింపు|கொடுப்பனவு|പേയ്മെന്റ്|ಪಾವತಿ|देय|পেমেন্ট|ચુકવણી|دفع).*(status|progress|rate|collection|वसूली|సేకరణ|சேகரிப்பு|ശേഖരണം|ಸಂಗ್ರಹ|वसुली|সংগ্রহ|સંગ્રહ|تحصيل)/i
+  ],
   [
     "fill_client_form",
     /\b(fill|auto.?fill|populate|register|create|complete|collect)\b.*\b(client|form|portal|onboard|details?|profile|wizard|data)\b|\b(client\s+details?|client\s+form|new\s+client|add\s+client)\b|(फॉर्म\s*भर|क्लाइंट\s*फॉर्म|क्लाइंट\s*विवरण|ऑटो\s*फिल|पोर्टल\s*भर)|(ఫారం\s*నింపండి|క్లయింట్\s*ఫారం|క్లయింట్\s*వివరాలు|ఆటో\s*ఫిల్)|(படிவம்\s*நிரப்பு|படிவத்தை\s*நிரப்பு|வாடிக்கையாளர்\s*விவரங்கள்|ஆட்டோ\s*ஃபில்)|(ഫോം\s*പൂരിപ്പിക്കുക|ക്ലയന്റ്\s*ഫോം|ക്ലയന്റ്\s*വിവരങ്ങൾ|ഓട്ടോ\s*ഫിൽ)|(ಫಾರ್ಮ್\s*ಭರ್ತಿ|ಕ್ಲೈಂಟ್\s*ವಿವರ|ಆಟೋ\s*ಫಿಲ್)|(फॉर्म\s*भरा|क्लायंट\s*फॉर्म|क्लायंट\s*तपशील)|(ফর্ম\s*পূরণ|ক্লায়েন্ট\s*তথ্য|অটো\s*ফিল)|(ફોર્મ\s*ભરો|ક્લાયન્ટ\s*વિગતો|ઑટો\s*ફિલ)|(تعبئة\s*النموذج|بيانات\s*العميل|تعبئة\s*تلقائية)/i

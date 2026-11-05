@@ -5,8 +5,8 @@ Internal business operations system for Amiro Tech Solutions.
 ## Tech Stack
 
 - Frontend: React, Next.js App Router, TypeScript
-- Authentication: Supabase Auth
-- Backend, database, storage, and policies: Supabase
+- Authentication: local demo login (currently)
+- Database: local PostgreSQL for the Clients module; other business modules still use browser demo storage until migrated
 - PDF generation: `jsPDF` with `jspdf-autotable` in the browser
 - Deployment: Vercel for frontend, Supabase for backend services
 
@@ -216,7 +216,7 @@ Implemented configuration foundations for company settings, service catalog, doc
 
 ## Demo Login
 
-Supabase and Vercel configuration are intentionally deferred for now. If `frontend/.env.local` does not contain Supabase values, the app runs in demo auth mode.
+The local demo login remains available. Client records are read from and written to local PostgreSQL through server routes; the database password is kept in `frontend/.env.local` and never sent to the browser.
 
 Use:
 
@@ -241,13 +241,24 @@ The demo session is stored locally in the browser and is only for exploring the 
    npm install
    ```
 
-3. Optional: create a local environment file when Supabase is ready:
+3. If `public.clients` already exists in your local database, keep that database and skip migrations. For a new database only, create the schema with the existing PowerShell script (run from the repository root):
 
    ```bash
-   cp .env.example .env.local
+   .\backend\scripts\migrate_local.ps1
    ```
 
-4. Add Supabase project values to `frontend/.env.local` when Supabase is ready. Without these values, demo auth mode is used.
+   It prompts for the PostgreSQL administrator password and creates the database `Business OPS` if needed. It applies the local bootstrap and migrations. The script replays every migration, so do not run it against an established database unless you have confirmed those migrations are safe to replay and have a backup.
+
+4. Create a restricted database login from pgAdmin Query Tool or `psql` (replace the password with one you choose):
+
+   ```sql
+   CREATE ROLE business_ops_app LOGIN PASSWORD 'choose-a-local-password';
+   GRANT CONNECT ON DATABASE "Business OPS" TO business_ops_app;
+   GRANT USAGE ON SCHEMA public TO business_ops_app;
+   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.clients TO business_ops_app;
+   ```
+
+   Then copy `frontend/.env.example` to `frontend/.env.local`, set `DATABASE_URL` to that local role and same database, and URL-encode special characters in the password. Keep this variable server-only; do not add the `NEXT_PUBLIC_` prefix.
 
 5. Start the development server:
 
@@ -260,11 +271,15 @@ The demo session is stored locally in the browser and is only for exploring the 
 ## Environment Variables
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
+DATABASE_URL=postgresql://business_ops_app:URL_ENCODED_PASSWORD@localhost:5432/Business%20OPS
+PGSSL=false
 ```
 
-Do not hardcode Supabase credentials. Configure these locally in `frontend/.env.local` and in Vercel project settings when the real Supabase project is connected.
+Do not commit `frontend/.env.local` or expose `DATABASE_URL` to browser code.
+
+The Clients Directory now uses `public.clients` in the configured local PostgreSQL database. On its first load, if that table is empty and this browser has legacy demo client records, the app imports those records in one transaction, then clears the browser copy only after the import succeeds. If the database already contains clients, it will not import or overwrite anything.
+
+Authentication and other business modules have not yet been migrated from demo storage. Do not configure Supabase environment variables; the current client module uses the local PostgreSQL API.
 
 ## Supabase Setup
 

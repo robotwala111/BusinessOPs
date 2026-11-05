@@ -14,7 +14,15 @@ export type CopilotIntent =
   | "delayed_projects"
   | "monthly_financials"
   | "expiring_contracts"
-  | "unresolved_tickets";
+  | "unresolved_tickets"
+  | "today_sales"
+  | "weekly_sales"
+  | "monthly_sales_trend"
+  | "revenue_analysis"
+  | "top_clients_by_revenue"
+  | "outstanding_receivables"
+  | "expense_analysis"
+  | "payment_collection_status";
 
 export type CopilotRecord = {
   id: string;
