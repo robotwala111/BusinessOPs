@@ -9,6 +9,27 @@ import { maintenanceService } from "@/services/maintenanceService";
 import { contractService } from "@/services/contractService";
 import { activityService } from "@/services/activityService";
 import type { CopilotRecord, CopilotMessage, CopilotConversation } from "@/types/copilot";
+import {
+  handleClientIntakeTurn,
+  getClientIntakeSession,
+  saveClientIntakeSession,
+  clearClientIntakeSession,
+  DEMO_CLIENT_INTAKE_PREFILL_KEY,
+  type ClientIntakeStep,
+  type ClientIntakeData,
+  type ClientIntakeSession
+} from "./clientIntake";
+
+export {
+  handleClientIntakeTurn,
+  getClientIntakeSession,
+  saveClientIntakeSession,
+  clearClientIntakeSession,
+  DEMO_CLIENT_INTAKE_PREFILL_KEY,
+  type ClientIntakeStep,
+  type ClientIntakeData,
+  type ClientIntakeSession
+};
 
 const DEMO_COPILOT_CONVERSATIONS_KEY = "business-ops-demo-copilot-conversations";
 const DEMO_COPILOT_MESSAGES_KEY = "business-ops-demo-copilot-messages";
@@ -183,6 +204,35 @@ export async function askAmiroIntelligenceDemo(
 
   let answer = "";
   const records: CopilotRecord[] = [];
+
+  // 1. Process conversational client intake steps if active or triggered
+  const intakeResult = handleClientIntakeTurn(question, convId, lang, intent || "");
+  if (intakeResult) {
+    answer = intakeResult.answer;
+    records.push(...intakeResult.records);
+
+    const assistantMessage: CopilotMessage = {
+      id: `msg-${Date.now()}-a`,
+      role: "assistant",
+      content: answer,
+      records,
+      created_at: new Date().toISOString()
+    };
+    const title = existingConv?.title || (question.length > 28 ? `${question.slice(0, 28)}...` : question);
+    const updatedConv: CopilotConversation = {
+      id: convId,
+      title,
+      updated_at: now,
+      language: lang
+    };
+    saveDemoConversation(updatedConv);
+    saveDemoMessages(convId, [...getDemoMessages(convId), userMessage, assistantMessage]);
+    return {
+      conversation: updatedConv,
+      userMessage,
+      assistantMessage
+    };
+  }
 
   // Compile business facts package for the LLM
   const overdueInvoices = invoices.filter(

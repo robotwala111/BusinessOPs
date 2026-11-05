@@ -124,9 +124,23 @@ export function QuotationForm({
   const { clients, isLoading: isLoadingClients } = useClients();
 
   function handleAiAutoFill() {
+    let custom: any = null;
+    if (typeof window !== "undefined") {
+      const raw = window.localStorage.getItem("amiro-client-intake-prefill");
+      if (raw) {
+        try {
+          custom = JSON.parse(raw);
+        } catch {
+          // ignore
+        }
+      }
+    }
     setFormData((prev) => ({
       ...prev,
       ...DEMO_QUOTATION_AUTOFILL,
+      title: (custom?.company_name
+        ? `Enterprise Cloud ERP Implementation - ${custom.company_name}`
+        : DEMO_QUOTATION_AUTOFILL.title) || "",
       client_id: prev.client_id || (clients[0]?.id ?? "")
     }));
     setAutofillBanner(true);
@@ -134,10 +148,25 @@ export function QuotationForm({
   }
 
   useEffect(() => {
-    if (searchParams?.get("autofill") === "true") {
+    const autofillParam = searchParams?.get("autofill");
+    if (autofillParam === "custom" || autofillParam === "true") {
+      let custom: any = null;
+      if (typeof window !== "undefined") {
+        const raw = window.localStorage.getItem("amiro-client-intake-prefill");
+        if (raw) {
+          try {
+            custom = JSON.parse(raw);
+          } catch {
+            // ignore
+          }
+        }
+      }
       setFormData((prev) => ({
         ...prev,
         ...DEMO_QUOTATION_AUTOFILL,
+        title: (custom?.company_name
+          ? `Enterprise Cloud ERP Implementation - ${custom.company_name}`
+          : DEMO_QUOTATION_AUTOFILL.title) || "",
         client_id: prev.client_id || (clients[0]?.id ?? "")
       }));
       setAutofillBanner(true);

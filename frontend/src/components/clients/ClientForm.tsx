@@ -113,14 +113,77 @@ export function ClientForm({
   }
 
   useEffect(() => {
-    if (searchParams?.get("autofill") === "true") {
-      setFormData(DEMO_AUTOFILL_CLIENT);
+    const autofillParam = searchParams?.get("autofill");
+    if (autofillParam === "custom" || autofillParam === "true") {
+      let custom: Partial<ClientFormData> | null = null;
+      if (typeof window !== "undefined") {
+        const raw = window.localStorage.getItem("amiro-client-intake-prefill");
+        if (raw) {
+          try {
+            custom = JSON.parse(raw);
+          } catch {
+            // ignore
+          }
+        }
+      }
+      if (custom && custom.company_name) {
+        setFormData({
+          ...defaultFormData,
+          ...DEMO_AUTOFILL_CLIENT,
+          ...custom,
+          company_name: custom.company_name,
+          client_short_name: custom.client_short_name || custom.company_name.split(/\s+/)[0] || "",
+          contact_person: custom.contact_person || DEMO_AUTOFILL_CLIENT.contact_person,
+          email: custom.email || DEMO_AUTOFILL_CLIENT.email,
+          phone: custom.phone || DEMO_AUTOFILL_CLIENT.phone,
+          industry: custom.industry || DEMO_AUTOFILL_CLIENT.industry,
+          address: custom.address || DEMO_AUTOFILL_CLIENT.address,
+          city: custom.city || DEMO_AUTOFILL_CLIENT.city,
+          state: custom.state || DEMO_AUTOFILL_CLIENT.state,
+          country: custom.country || "India",
+          gst_number: custom.gst_number || DEMO_AUTOFILL_CLIENT.gst_number,
+          pan_number: custom.pan_number || DEMO_AUTOFILL_CLIENT.pan_number
+        });
+      } else {
+        setFormData(DEMO_AUTOFILL_CLIENT);
+      }
       setAutofillBanner(true);
     }
   }, [searchParams]);
 
   function handleAutoFill() {
-    setFormData(DEMO_AUTOFILL_CLIENT);
+    let custom: Partial<ClientFormData> | null = null;
+    if (typeof window !== "undefined") {
+      const raw = window.localStorage.getItem("amiro-client-intake-prefill");
+      if (raw) {
+        try {
+          custom = JSON.parse(raw);
+        } catch {
+          // ignore
+        }
+      }
+    }
+    if (custom && custom.company_name) {
+      setFormData({
+        ...defaultFormData,
+        ...DEMO_AUTOFILL_CLIENT,
+        ...custom,
+        company_name: custom.company_name,
+        client_short_name: custom.client_short_name || custom.company_name.split(/\s+/)[0] || "",
+        contact_person: custom.contact_person || DEMO_AUTOFILL_CLIENT.contact_person,
+        email: custom.email || DEMO_AUTOFILL_CLIENT.email,
+        phone: custom.phone || DEMO_AUTOFILL_CLIENT.phone,
+        industry: custom.industry || DEMO_AUTOFILL_CLIENT.industry,
+        address: custom.address || DEMO_AUTOFILL_CLIENT.address,
+        city: custom.city || DEMO_AUTOFILL_CLIENT.city,
+        state: custom.state || DEMO_AUTOFILL_CLIENT.state,
+        country: custom.country || "India",
+        gst_number: custom.gst_number || DEMO_AUTOFILL_CLIENT.gst_number,
+        pan_number: custom.pan_number || DEMO_AUTOFILL_CLIENT.pan_number
+      });
+    } else {
+      setFormData(DEMO_AUTOFILL_CLIENT);
+    }
     setAutofillBanner(true);
     setErrorMessage("");
   }
@@ -169,7 +232,7 @@ export function ClientForm({
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <span style={{ fontSize: "20px" }}>✨</span>
               <div>
-                <strong>AI Auto-Fill Active:</strong> All enterprise client fields have been automatically populated with verified corporate records. Ready to save without manual typing!
+                <strong>AI Auto-Fill Active:</strong> Client details for <strong>{formData.company_name || "Enterprise Account"}</strong> have been automatically populated from your AI chat intake. Ready to save without manual typing!
               </div>
             </div>
             <button

@@ -209,9 +209,9 @@ function formatMessageContent(content: string) {
 }
 
 function formatInlineStyles(text: string) {
-  // Parses **bold** and *italic*
+  // Parses [Link](url), **bold**, *italic*, and `code`
   const parts: (string | JSX.Element)[] = [];
-  const regex = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
+  const regex = /(\[[^\]]+\]\([^)]+\)|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
@@ -220,7 +220,28 @@ function formatInlineStyles(text: string) {
       parts.push(text.substring(lastIndex, match.index));
     }
     const token = match[0];
-    if (token.startsWith("**") && token.endsWith("**")) {
+    if (token.startsWith("[") && token.includes("](")) {
+      const linkMatch = token.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+      if (linkMatch) {
+        parts.push(
+          <Link
+            key={match.index}
+            href={linkMatch[2]}
+            className="ai-markdown-link"
+            style={{
+              color: "#f59e0b",
+              fontWeight: 600,
+              textDecoration: "underline",
+              textUnderlineOffset: "3px"
+            }}
+          >
+            {linkMatch[1]}
+          </Link>
+        );
+      } else {
+        parts.push(token);
+      }
+    } else if (token.startsWith("**") && token.endsWith("**")) {
       parts.push(
         <strong key={match.index} className="ai-bold">
           {token.slice(2, -2)}

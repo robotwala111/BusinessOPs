@@ -16,10 +16,10 @@ const SUGGESTIONS_BY_LANG: Record<string, { heading: string; subtitle: string; c
     chips: [
       { text: "మీరు ఏ సేవలను అందిస్తున్నారు?", icon: "💼" },
       { text: "కంపెనీ గురించి వివరాలు చెప్పండి.", icon: "🏢" },
-      { text: "నేను ఎలా ప్రారంభించాలి?", icon: "🚀" },
-      { text: "నాకు సహాయం కావాలి.", icon: "💡" },
+      { text: "క్లయింట్ వివరాలు నింపండి.", icon: "📝" },
       { text: "బకాయి ఉన్న ఇన్వాయిస్‌లు చూపించు.", icon: "📑" },
-      { text: "యాక్టివ్ ప్రాజెక్ట్‌లను వివరించండి.", icon: "📊" }
+      { text: "యాక్టివ్ ప్రాజెక్ట్‌లను వివరించండి.", icon: "📊" },
+      { text: "నాకు సహాయం కావాలి.", icon: "💡" }
     ]
   },
   hi: {
@@ -29,10 +29,10 @@ const SUGGESTIONS_BY_LANG: Record<string, { heading: string; subtitle: string; c
     chips: [
       { text: "आप कौन सी सेवाएं प्रदान करते हैं?", icon: "💼" },
       { text: "अपनी कंपनी के बारे में बताएं।", icon: "🏢" },
-      { text: "मैं शुरुआत कैसे करूँ?", icon: "🚀" },
-      { text: "मुझे किसी चीज़ में मदद चाहिए।", icon: "💡" },
+      { text: "क्लाइंट विवरण स्टेप-बाय-स्टेप भरें।", icon: "📝" },
       { text: "बकाया इनवॉइस दिखाओ।", icon: "📑" },
-      { text: "सक्रिय प्रोजेक्ट्स का सारांश बताएं।", icon: "📊" }
+      { text: "सक्रिय प्रोजेक्ट्स का सारांश बताएं।", icon: "📊" },
+      { text: "मुझे किसी चीज़ में मदद चाहिए।", icon: "💡" }
     ]
   },
   kn: {
@@ -42,10 +42,10 @@ const SUGGESTIONS_BY_LANG: Record<string, { heading: string; subtitle: string; c
     chips: [
       { text: "ನೀವು ಯಾವ ಸೇವೆಗಳನ್ನು ನೀಡುತ್ತೀರಿ?", icon: "💼" },
       { text: "ನಿಮ್ಮ ಕಂಪನಿಯ ಬಗ್ಗೆ ತಿಳಿಸಿ.", icon: "🏢" },
-      { text: "ನಾನು ಹೇಗೆ ಪ್ರಾರಂಭಿಸುವುದು?", icon: "🚀" },
-      { text: "ನನಗೆ ಸಹಾಯ ಬೇಕು.", icon: "💡" },
+      { text: "ಕ್ಲೈಂಟ್ ವಿವರಗಳನ್ನು ಭರ್ತಿ ಮಾಡಿ.", icon: "📝" },
       { text: "ಬಾಕಿ ಉಳಿದ ಇನ್‌ವಾಯ್ಸ್‌ಗಳನ್ನು ತೋರಿಸಿ.", icon: "📑" },
-      { text: "ಸಕ್ರಿಯ ಪ್ರಾಜೆಕ್ಟ್‌ಗಳ ಸಾರಾಂಶ ನೀಡಿ.", icon: "📊" }
+      { text: "ಸಕ್ರಿಯ ಪ್ರಾಜೆಕ್ಟ್‌ಗಳ ಸಾರಾಂಶ ನೀಡಿ.", icon: "📊" },
+      { text: "ನನಗೆ ಸಹಾಯ ಬೇಕು.", icon: "💡" }
     ]
   },
   ta: {
@@ -131,7 +131,7 @@ const SUGGESTIONS_BY_LANG: Record<string, { heading: string; subtitle: string; c
     chips: [
       { text: "What services do you offer?", icon: "💼" },
       { text: "Tell me about your company.", icon: "🏢" },
-      { text: "Fill client form automatically.", icon: "✨" },
+      { text: "Help me fill client details step by step.", icon: "📝" },
       { text: "Show overdue invoices.", icon: "📑" },
       { text: "Summarize active projects.", icon: "📊" },
       { text: "How can I get started?", icon: "🚀" }

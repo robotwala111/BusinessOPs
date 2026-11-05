@@ -4,7 +4,7 @@ const intentPatterns: Array<[CopilotIntent, RegExp]> = [
   // 1. High-priority specific queries
   [
     "fill_client_form",
-    /\b(fill|auto.?fill|populate|register|create|complete)\b.*\b(client|form|portal|onboard|details?|profile|wizard)\b|\b(fill|auto.?fill)\s+(form|portal|client|wizard)\b|\b(fill|auto.?fill)\b|(फॉर्म\s*भर|क्लाइंट\s*फॉर्म|ऑटो\s*फिल|पोर्टल\s*भर)|(ఫారం\s*నింపండి|క్లయింట్\s*ఫారం|ఆటో\s*ఫిల్)|(படிவம்\s*நிரப்பு|படிவத்தை\s*நிரப்பு|ஆட்டோ\s*ஃபில்)|(ഫോം\s*പൂരിപ്പിക്കുക|ക്ലയന്റ്\s*ഫോം|ഓട്ടോ\s*ഫിൽ)|(ಫಾರ್ಮ್\s*ಭರ್ತಿ|ಆಟೋ\s*ಫಿಲ್)|(फॉर्म\s*भरा|क्लायंट\s*फॉर्म)|(ফর্ম\s*পূরণ|অটো\s*ফিল)|(ફોર્મ\s*ભરો|ઑટો\s*ફિલ)|(تعبئة\s*النموذج|تعبئة\s*تلقائية)/i
+    /\b(fill|auto.?fill|populate|register|create|complete|collect)\b.*\b(client|form|portal|onboard|details?|profile|wizard|data)\b|\b(client\s+details?|client\s+form|new\s+client|add\s+client)\b|(फॉर्म\s*भर|क्लाइंट\s*फॉर्म|क्लाइंट\s*विवरण|ऑटो\s*फिल|पोर्टल\s*भर)|(ఫారం\s*నింపండి|క్లయింట్\s*ఫారం|క్లయింట్\s*వివరాలు|ఆటో\s*ఫిల్)|(படிவம்\s*நிரப்பு|படிவத்தை\s*நிரப்பு|வாடிக்கையாளர்\s*விவரங்கள்|ஆட்டோ\s*ஃபில்)|(ഫോം\s*പൂരിപ്പിക്കുക|ക്ലയന്റ്\s*ഫോം|ക്ലയന്റ്\s*വിവരങ്ങൾ|ഓട്ടോ\s*ഫിൽ)|(ಫಾರ್ಮ್\s*ಭರ್ತಿ|ಕ್ಲೈಂಟ್\s*ವಿವರ|ಆಟೋ\s*ಫಿಲ್)|(फॉर्म\s*भरा|क्लायंट\s*फॉर्म|क्लायंट\s*तपशील)|(ফর্ম\s*পূরণ|ক্লায়েন্ট\s*তথ্য|অটো\s*ফিল)|(ફોર્મ\s*ભરો|ક્લાયન્ટ\s*વિગતો|ઑટો\s*ફિલ)|(تعبئة\s*النموذج|بيانات\s*العميل|تعبئة\s*تلقائية)/i
   ],
   [
     "company_brief",

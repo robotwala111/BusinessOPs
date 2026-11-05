@@ -159,20 +159,46 @@ export function ClientOnboardingWizard() {
   const router = useRouter();
 
   function handleAiAutoFill() {
-    setForm(DEMO_WIZARD_AUTOFILL);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(DEMO_WIZARD_AUTOFILL));
+    let custom: any = null;
+    if (typeof window !== "undefined") {
+      const raw = window.localStorage.getItem("amiro-client-intake-prefill");
+      if (raw) {
+        try {
+          custom = JSON.parse(raw);
+        } catch {
+          // ignore
+        }
+      }
+    }
+    const populated: OnboardingState = {
+      ...DEMO_WIZARD_AUTOFILL,
+      ...(custom?.company_name
+        ? {
+            companyName: custom.company_name,
+            clientShortName: custom.client_short_name || custom.company_name.split(/\s+/)[0],
+            industry: custom.industry || DEMO_WIZARD_AUTOFILL.industry,
+            address: custom.address || DEMO_WIZARD_AUTOFILL.address,
+            city: custom.city || DEMO_WIZARD_AUTOFILL.city,
+            state: custom.state || DEMO_WIZARD_AUTOFILL.state,
+            gstNumber: custom.gst_number || DEMO_WIZARD_AUTOFILL.gstNumber,
+            primaryContactName: custom.contact_person || DEMO_WIZARD_AUTOFILL.primaryContactName,
+            primaryEmail: custom.email || DEMO_WIZARD_AUTOFILL.primaryEmail,
+            primaryPhone: custom.phone || DEMO_WIZARD_AUTOFILL.primaryPhone
+          }
+        : {})
+    };
+    setForm(populated);
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(populated));
     setIsAutofilledBanner(true);
     setCurrentStep(7); // Jump straight to review step so user can review and activate in 1 click!
     setErrorMsg("");
   }
 
-  // Load draft from localStorage, check for ?autofill=true & fetch existing clients
+  // Load draft from localStorage, check for ?autofill & fetch existing clients
   useEffect(() => {
-    if (searchParams?.get("autofill") === "true") {
-      setForm(DEMO_WIZARD_AUTOFILL);
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(DEMO_WIZARD_AUTOFILL));
-      setIsAutofilledBanner(true);
-      setCurrentStep(7);
+    const autofillParam = searchParams?.get("autofill");
+    if (autofillParam === "custom" || autofillParam === "true") {
+      handleAiAutoFill();
     } else {
       const saved = window.localStorage.getItem(STORAGE_KEY);
       if (saved) {

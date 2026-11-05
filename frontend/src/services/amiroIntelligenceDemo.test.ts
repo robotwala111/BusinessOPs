@@ -64,21 +64,59 @@ describe("Conversation language stickiness and consistency", () => {
     expect(res.assistantMessage.content).toContain("ಅಮಿರೋ");
   });
 
-  it("handles 'fill client form' intent and returns direct portal auto-fill links", async () => {
-    const res = await askAmiroIntelligenceDemo("fill client form", "conv-test-autofill");
-    expect(res.assistantMessage.content).toContain("Apex Global Technologies");
-    expect(res.assistantMessage.content).toContain("/clients/new?autofill=true");
-    expect(res.assistantMessage.content).toContain("/clients/onboard?autofill=true");
-    expect(res.assistantMessage.records.some((r) => r.href === "/clients/new?autofill=true")).toBe(true);
-    expect(res.assistantMessage.records.some((r) => r.href === "/clients/onboard?autofill=true")).toBe(true);
+  it("collects client details step-by-step through interactive chat conversation", async () => {
+    const convId = "conv-test-interactive-intake";
+
+    // Turn 1: User asks to fill client details
+    const turn1 = await askAmiroIntelligenceDemo("fill client details", convId);
+    expect(turn1.assistantMessage.content).toContain("Step 1 of 4: Company Name");
+
+    // Turn 2: User provides Company Name
+    const turn2 = await askAmiroIntelligenceDemo("Zenith Enterprise Solutions", convId);
+    expect(turn2.assistantMessage.content).toContain("Zenith Enterprise Solutions");
+    expect(turn2.assistantMessage.content).toContain("Step 2 of 4: Primary Contact & Email");
+
+    // Turn 3: User provides Contact Person & Email
+    const turn3 = await askAmiroIntelligenceDemo("Vikram Sharma, vikram@zenith.com", convId);
+    expect(turn3.assistantMessage.content).toContain("Vikram Sharma");
+    expect(turn3.assistantMessage.content).toContain("vikram@zenith.com");
+    expect(turn3.assistantMessage.content).toContain("Step 3 of 4: Phone & Industry");
+
+    // Turn 4: User provides Phone & Industry
+    const turn4 = await askAmiroIntelligenceDemo("+91 98490 55555, FinTech Software", convId);
+    expect(turn4.assistantMessage.content).toContain("+91 98490 55555");
+    expect(turn4.assistantMessage.content).toContain("FinTech Software");
+    expect(turn4.assistantMessage.content).toContain("Step 4 of 4: Location & GSTIN");
+
+    // Turn 5: User completes with skip / standard defaults
+    const turn5 = await askAmiroIntelligenceDemo("skip", convId);
+    expect(turn5.assistantMessage.content).toContain("Client Data Collected Successfully");
+    expect(turn5.assistantMessage.content).toContain("Zenith Enterprise Solutions");
+    expect(turn5.assistantMessage.content).toContain("/clients/new?autofill=custom");
+    expect(turn5.assistantMessage.content).toContain("/clients/onboard?autofill=custom");
+    expect(turn5.assistantMessage.records.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("handles 'fill client form' in Malayalam and returns Malayalam reply with links", async () => {
-    const res = await askAmiroIntelligenceDemo("ക്ലയന്റ് ഫോം പൂരിപ്പിക്കുക", "conv-test-autofill-ml");
-    expect(res.conversation.language).toBe("ml");
+  it("supports instant demo auto-fill when user explicitly requests demo", async () => {
+    const res = await askAmiroIntelligenceDemo("fill client form with demo", "conv-test-autofill-demo");
     expect(res.assistantMessage.content).toContain("Apex Global Technologies");
-    expect(res.assistantMessage.content).toContain("/clients/new?autofill=true");
-    expect(res.assistantMessage.records.length).toBeGreaterThanOrEqual(2);
+    expect(res.assistantMessage.content).toContain("/clients/new?autofill=custom");
+    expect(res.assistantMessage.records.some((r) => r.href.includes("/clients/new"))).toBe(true);
+  });
+
+  it("initiates step-by-step intake in Malayalam and auto-detects language", async () => {
+    const convId = "conv-test-autofill-ml";
+    // Turn 1: User asks in Malayalam
+    const turn1 = await askAmiroIntelligenceDemo("ക്ലയന്റ് ഫോം പൂരിപ്പിക്കുക", convId);
+    expect(turn1.conversation.language).toBe("ml");
+    expect(turn1.assistantMessage.content).toContain("ഘട്ടം 1/4: കമ്പനിയുടെ പേര്");
+
+    // Turn 2: User requests demo in Malayalam
+    const turn2 = await askAmiroIntelligenceDemo("ഡെമോ", convId);
+    expect(turn2.conversation.language).toBe("ml");
+    expect(turn2.assistantMessage.content).toContain("Apex Global Technologies");
+    expect(turn2.assistantMessage.content).toContain("/clients/new?autofill=custom");
+    expect(turn2.assistantMessage.records.length).toBeGreaterThanOrEqual(2);
   });
 });
 
