@@ -149,18 +149,50 @@ describe("Conversation language stickiness and consistency", () => {
     expect(turn2.assistantMessage.records.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("handles conversational greetings like 'How are you' and acknowledgments like 'good' gracefully without repetitive hardcoded fallback", async () => {
-    const convId = "conv-test-conversational-courtesy";
+  it("replies as a warm well-wisher for 'ok', 'good', 'bye', and 'thanks' without repeating previous messages", async () => {
+    const convId = "conv-test-well-wisher";
 
-    // Turn 1: User asks "How are you" (from user's screenshot)
+    // 1. User says "How are you"
     const turn1 = await askAmiroIntelligenceDemo("How are you", convId);
-    expect(turn1.assistantMessage.content).not.toContain("I'm here to assist with Amiro Tech Solutions operations. Please let me know what you would like to check");
     expect(turn1.assistantMessage.content).toMatch(/I'm doing great|Amiro Intelligence/);
 
-    // Turn 2: User responds "good" (from user's screenshot)
+    // 2. User responds "good" -> must reply as a well-wisher praising and wishing them success
     const turn2 = await askAmiroIntelligenceDemo("good", convId);
-    expect(turn2.assistantMessage.content).not.toContain("I'm here to assist with Amiro Tech Solutions operations. Please let me know what you would like to check");
-    expect(turn2.assistantMessage.content).toMatch(/Glad to assist|Feel free to ask/);
+    expect(turn2.assistantMessage.content).not.toBe(turn1.assistantMessage.content);
+    expect(turn2.assistantMessage.content).toMatch(/joy to assist you|Wishing you continued inspiration|tremendous success/);
+
+    // 3. User says "ok" -> must reply as a well-wisher wishing smooth, fruitful progress
+    const turn3 = await askAmiroIntelligenceDemo("ok", convId);
+    expect(turn3.assistantMessage.content).not.toBe(turn2.assistantMessage.content);
+    expect(turn3.assistantMessage.content).toMatch(/Wishing you smooth and fruitful progress|productive day/);
+
+    // 4. User says "bye" -> must reply as a well-wisher with warm farewell
+    const turn4 = await askAmiroIntelligenceDemo("bye", convId);
+    expect(turn4.assistantMessage.content).not.toBe(turn3.assistantMessage.content);
+    expect(turn4.assistantMessage.content).toMatch(/Goodbye|Wishing you a wonderful|Take good care|See you soon/);
+  });
+
+  it("provides multilingual well-wisher replies and handles intake cancellation cleanly", async () => {
+    // Tamil well-wisher farewell
+    const taBye = await askAmiroIntelligenceDemo("bye", "conv-ta-bye", "ta");
+    expect(taBye.assistantMessage.content).toContain("விடைபெறுகிறேன்");
+    expect(taBye.assistantMessage.content).toContain("நல்வாழ்த்துகள்");
+
+    // Telugu well-wisher agreement
+    const teOk = await askAmiroIntelligenceDemo("ok", "conv-te-ok", "te");
+    expect(teOk.assistantMessage.content).toContain("చాలా సంతోషం");
+    expect(teOk.assistantMessage.content).toContain("విజయవంతం");
+
+    // Intake cancellation on "bye" without repeating previous intake prompts
+    const intakeConv = "conv-intake-bye-test";
+    const intakeStart = await askAmiroIntelligenceDemo("fill client details", intakeConv);
+    expect(intakeStart.assistantMessage.content).toContain("Step 1 of 4: Company Name");
+
+    // User says "bye" instead of entering company name -> must NOT repeat intake prompt or save "bye" as company!
+    const intakeBye = await askAmiroIntelligenceDemo("bye", intakeConv);
+    expect(intakeBye.assistantMessage.content).not.toContain("Step 1 of 4");
+    expect(intakeBye.assistantMessage.content).not.toContain("Company Name saved");
+    expect(intakeBye.assistantMessage.content).toMatch(/Goodbye|Wishing you a wonderful/);
   });
 
   afterEach(() => {

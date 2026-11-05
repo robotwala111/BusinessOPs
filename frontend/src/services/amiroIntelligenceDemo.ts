@@ -129,6 +129,143 @@ export function detectQuestionLanguage(text: string, preferred?: string): Suppor
   return "en";
 }
 
+export type WellWisherType = "farewell" | "agreement" | "appreciation" | "gratitude";
+
+export function detectWellWisherIntent(question: string): WellWisherType | null {
+  const trimmed = question.trim().toLowerCase();
+
+  // 1. Farewell (bye, goodbye, see you, take care, good night, have a nice day...)
+  const isFarewell =
+    /^(bye|goodbye|good\s*bye|bye\s*bye|byee|byeee|cya|see\s*you|take\s*care|good\s*night|gn|have\s*a\s*(great|good|nice|wonderful)\s*day|alvida|tata)\b/i.test(trimmed) ||
+    /^(సెలవు|మళ్ళీ కలుద్దాం|వీడ్కోలు|போய் வருகிறேன்|விடைபெறுகிறேன்|போயிட்டு வரேன்|अलविदा|फिर मिलेंगे|ಶುಭ ವಿದಾಯ|ಮತ್ತೆ ಸಿಗೋಣ|വിട|പോയി വരാം|निरोप|বিদায়|આવજો|مع السلامة|وداعاً)$/i.test(trimmed) ||
+    /\b(see you later|see you soon|talk to you later|catch you later|take care of yourself)\b/i.test(question);
+  if (isFarewell) return "farewell";
+
+  // 2. Appreciation / Positive Praise (good, great, awesome, super, nice, cool, well done...)
+  const isAppreciation =
+    /^(good|great|awesome|super|superb|nice|cool|fantastic|wonderful|excellent|brilliant|amazing|perfect|well\s*done|very\s*good)\b/i.test(trimmed) ||
+    /^(బాగుంది|చాలా బాగుంది|మంచిది|நல்லது|மிக நன்று|ரொம்ப நல்லா இருக்கு|अच्छा है|बहुत अच्छा|बढ़िया|ಉತ್ತಮ|ತುಂಬಾ ಚೆನ್ನಾಗಿದೆ|ನಲ್ಲത്|വളരെ നല്ലത്|छान|खूप छान|ভালো|খুব ভালো|સરસ|ખૂબ સરસ|ممتاز|رائع|جيد)$/i.test(trimmed);
+  if (isAppreciation) return "appreciation";
+
+  // 3. Gratitude (thanks, thank you, thx, much appreciated...)
+  const isGratitude =
+    /^(thanks|thank\s*you|thx|thankyou|many\s*thanks|thanks\s*a\s*lot|thank\s*you\s*so\s*much|much\s*appreciated)\b/i.test(trimmed) ||
+    /\b(ధన్యవాదాలు|నమస్కారాలు|நன்றி|மிக்க நன்றி|धन्यवाद|शुक्रिया|ಧನ್ಯವಾದಗಳು|നന്ദി|വളരെ നന്ദി|धन्यवाद|ধন্যবাদ|આભાર|شكراً|شكرا جزيلا)\b/i.test(question);
+  if (isGratitude) return "gratitude";
+
+  // 4. Acknowledgment / Ok / Agreement (ok, okay, k, sure, fine, alright, got it...)
+  const isAgreement =
+    /^(ok|okay|k|okk|okie|okies|sure|alright|all\s*right|got\s*it|understood|noted|done|fine|sounds\s*good|no\s*problem|np)\b/i.test(trimmed) ||
+    /^(సరే|ఓకే|சரி|சரிங்க|ठीक है|अच्छा|ಸರಿ|ಶರಿ|ശരി|ശരിയാണ്|बरे आहे|ঠিক আছে|બરાબર|حسناً|تمام)$/i.test(trimmed);
+  if (isAgreement) return "agreement";
+
+  return null;
+}
+
+export function getWellWisherResponse(type: WellWisherType, lang: SupportedLanguage): string {
+  switch (type) {
+    case "farewell": {
+      if (lang === "te") {
+        return "వీడ్కోలు! 👋 మీకు ఈ రోజు అంతా శుభం కలగాలని, మీ వ్యాపార పనులన్నీ విజయవంతం కావాలని మనస్ఫూర్తిగా కోరుకుంటున్నాను! జాగ్రత్తగా ఉండండి, అవసరమైనప్పుడు నేను ఎల్లప్పుడూ మీకు సహాయం చేయడానికి సిద్ధంగా ఉంటాను. మళ్ళీ కలుద్దాం!";
+      } else if (lang === "ta") {
+        return "விடைபெறுகிறேன்! 👋 உங்கள் நாள் மிகவும் சிறப்பானதாகவும், அனைத்து முயற்சிகளிலும் வெற்றி பெறவும் மனமார்ந்த நல்வாழ்த்துகள்! நலம் பேணுங்கள், தேவைப்படும்போது உதவ நான் எப்போதும் இங்கேயே இருக்கிறேன். மீண்டும் சந்திப்போம்!";
+      } else if (lang === "hi") {
+        return "अलविदा! 👋 आपके आगे के दिन के लिए ढेर सारी शुभकामनाएँ! आपका दिन अत्यंत सफल और मंगलमय रहे। अपना ध्यान रखें, और जब भी आवश्यकता हो, मैं आपकी सहायता के लिए सदैव तत्पर हूँ। फिर मिलेंगे!";
+      } else if (lang === "kn") {
+        return "ಶುಭ ವಿದಾಯ! 👋 ನಿಮ್ಮ ಮುಂದಿನ ದಿನವು ಮಂಗಳಕರವಾಗಿರಲಿ ಮತ್ತು ನಿಮ್ಮ ಎಲ್ಲಾ ಕಾರ್ಯಗಳಲ್ಲಿ ಯಶಸ್ಸು ಸಿಗಲಿ ಎಂದು ಹಾರೈಸುತ್ತೇನೆ! ನಿಮ್ಮ ಕಾಳಜಿ ವಹಿಸಿ, ಮತ್ತೆ ಭೇಟಿಯಾಗೋಣ!";
+      } else if (lang === "ml") {
+        return "വിട! 👋 നിങ്ങളുടെ ദിവസം ശുഭകരവും വിജയകരവുമായിരിക്കട്ടെ എന്ന് ആശംസിക്കുന്നു! സ്വന്തം കാര്യം ശ്രദ്ധിക്കുക, ആവശ്യമുള്ളപ്പോഴെല്ലാം സഹായിക്കാൻ ഞാൻ ഇവിടെയുണ്ട്. ഉടൻ കാണാം!";
+      } else if (lang === "mr") {
+        return "निरोप! 👋 तुमचा आजचा दिवस अत्यंत आनंददायी आणि यशस्वी जावो हीच सदिच्छा! स्वतःची काळजी घ्या, लवकरच पुन्हा भेटू!";
+      } else if (lang === "bn") {
+        return "বিদায়! 👋 আপনার দিনটি অত্যন্ত সফল এবং আনন্দময় হোক এই শুভকামনা রইল! নিজের যত্ন নিন, আবার দেখা হবে!";
+      } else if (lang === "gu") {
+        return "આવજો! 👋 તમારો દિવસ ખૂબ જ શુભ અને સફળ રહે તેવી હૃદયપૂર્વકની શુભેચ્છાઓ! તમારું ધ્યાન રાખજો, ફરી મળીશું!";
+      } else if (lang === "ar") {
+        return "مع السلامة! 👋 أتمنى لك يوماً رائعاً ومليئاً بالنجاح والتوفيق! اعتنِ بنفسك، وأنا دائماً في خدمتك كلما احتجت إليّ. إلى اللقاء قريباً!";
+      } else if (lang === "es") {
+        return "¡Hasta luego! 👋 ¡Te deseo un día maravilloso, productivo y lleno de éxitos! Cuídate mucho y recuerda que siempre estoy aquí para ayudarte. ¡Hasta pronto!";
+      }
+      return "Goodbye! 👋 Wishing you a wonderful, safe, and successful day ahead! Take good care, and remember I'm always here whenever you need assistance with Amiro Tech Solutions. See you soon!";
+    }
+
+    case "agreement": {
+      if (lang === "te") {
+        return "చాలా సంతోషం! మీ పనులన్నీ ఎలాంటి ఆటంకం లేకుండా సజావుగా సాగాలని మనస్ఫూర్తిగా కోరుకుంటున్నాను. మీకు ఏ సమాచారం కావాలన్నా నేను సహాయం చేయడానికి సిద్ధంగా ఉన్నాను. మీ రోజు విజయవంతం కావాలి!";
+      } else if (lang === "ta") {
+        return "மிக நன்று! உங்கள் இன்றைய பணிகள் அனைத்தும் தடையின்றி வெற்றிகரமாக அமைய நல்வாழ்த்துகள். எப்போது தேவைப்பட்டாலும் உதவ நான் தயாராக உள்ளேன். உங்கள் நாள் இனிதாக அமையட்டும்!";
+      } else if (lang === "hi") {
+        return "बहुत बढ़िया! आपके आज के सभी कार्य सुगमता और सफलता से पूर्ण हों, ऐसी मेरी हार्दिक शुभकामना है। आपको जब भी किसी जानकारी की आवश्यकता हो, मैं यहीं उपस्थित हूँ। आपका दिन अत्यंत फलदायी रहे!";
+      } else if (lang === "kn") {
+        return "ಉತ್ತಮ! ನಿಮ್ಮ ಇಂದಿನ ಕೆಲಸಗಳೆಲ್ಲವೂ ಸುಗಮವಾಗಿ ಮತ್ತು ಯಶಸ್ವಿಯಾಗಿ ಸಾಗಲಿ ಎಂದು ಹಾರೈಸುತ್ತೇನೆ. ಯಾವುದೇ ಮಾಹಿತಿ ಬೇಕಾದರೂ ಕೇಳಿ, ನಾನು ಸದಾ ಸಿದ್ಧ. ದಿನವು ಶುಭವಾಗಿರಲಿ!";
+      } else if (lang === "ml") {
+        return "വളരെ നല്ലത്! ഇന്നത്തെ നിങ്ങളുടെ എല്ലാ പ്രവർത്തനങ്ങളും നല്ല രീതിയിൽ നടക്കട്ടെ എന്ന് ആശംസിക്കുന്നു. സഹായം ആവശ്യമുള്ളപ്പോഴെല്ലാം ഞാൻ ഇവിടെയുണ്ട്. ശുഭദിനം നേരുന്നു!";
+      } else if (lang === "mr") {
+        return "छान! आजचे तुमचे सर्व काम सुरळीत आणि यशस्वी व्हावे हीच सदिच्छा. जेव्हा गरज भासेल तेव्हा मी मदतीसाठी सदैव तयार आहे. शुभ दिवस!";
+      } else if (lang === "bn") {
+        return "দারুণ! আপনার আজকের সমস্ত কাজ সুন্দর ও সফলভাবে সম্পন্ন হোক এই শুভকামনা। যেকোনো প্রয়োজনে আমি সবসময় প্রস্তুত। আপনার দিনটি চমৎকার কাটুক!";
+      } else if (lang === "gu") {
+        return "ખૂબ સરસ! તમારું આજનું કામ ખૂબ જ સરળતા અને સફળતાથી પૂર્ણ થાય તેવી શુભેચ્છા. જ્યારે પણ જરૂર હોય ત્યારે હું તમારી મદદ માટે તૈયાર છું. તમારો દિવસ શુભ રહે!";
+      } else if (lang === "ar") {
+        return "رائع جداً! أتمنى لك التوفيق والنجاح في إنجاز كافة أعمالك اليوم بكل يسر وسهولة. أنا دائماً بجانبك لتقديم أي مساعدة تحتاجها. يوماً مثمراً وسعيداً!";
+      } else if (lang === "es") {
+        return "¡Excelente! Te deseo una jornada muy productiva y fluida. Tómate tu tiempo, y cuando desees consultar cualquier registro, aquí estaré. ¡Que tengas un gran día!";
+      }
+      return "Wonderful! Wishing you smooth and fruitful progress with your work today. Take your time, and whenever you'd like to check any records or insights, I'm right here by your side. Have a truly productive day!";
+    }
+
+    case "appreciation": {
+      if (lang === "te") {
+        return "చాలా చాలా ధన్యవాదాలు! మీకు సహాయపడటం నాకు ఎంతో ఆనందాన్ని ఇస్తుంది. మీరు చేసే ప్రతి పనిలోనూ గొప్ప విజయం సాధించాలని కోరుకుంటున్నాను! మీకు ఇంకా ఏ విధంగా సహాయపడగలను?";
+      } else if (lang === "ta") {
+        return "மிக்க நன்றி! உங்களுக்கு உதவுவதில் நான் மிகுந்த மகிழ்ச்சி அடைகிறேன். நீங்கள் தொட்டதெல்லாம் துலங்கவும், பெருவெற்றி பெறவும் நல்வாழ்த்துகள்! மேலும் எவ்வாறு உங்களுக்கு உதவ முடியும்?";
+      } else if (lang === "hi") {
+        return "बहुत-बहुत धन्यवाद! आपकी सहायता करके मुझे अपार प्रसन्नता हुई। ईश्वर करे आपका हर प्रयास सफल हो और आप निरंतर प्रगति करें! मैं आज आपकी और किस प्रकार सहायता कर सकता हूँ?";
+      } else if (lang === "kn") {
+        return "ತುಂಬಾ ಧನ್ಯವಾದಗಳು! ನಿಮಗೆ ಸಹಾಯ ಮಾಡಲು ನನಗೆ ಸಂತೋಷವಾಗಿದೆ. ನೀವು ಮಾಡುವ ಪ್ರತಿಯೊಂದು ಕೆಲಸದಲ್ಲೂ ಜಯ ಸಿಗಲಿ ಎಂದು ಹಾರೈಸುತ್ತೇನೆ! ನಾನು ನಿಮಗೆ ಬೇರೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?";
+      } else if (lang === "ml") {
+        return "വളരെ നന്ദി! നിങ്ങളെ സഹായിക്കാൻ സാധിച്ചതിൽ എനിക്ക് വലിയ സന്തോഷമുണ്ട്. നിങ്ങളുടെ എല്ലാ സംരംഭങ്ങളിലും വലിയ വിജയം ആശംസിക്കുന്നു! ഞാൻ ഇനി എങ്ങനെയാണ് സഹായിക്കേണ്ടത്?";
+      } else if (lang === "mr") {
+        return "मनःपूर्वक धन्यवाद! आपली मदत करून मला खूप आनंद झाला. आपण हाती घेतलेल्या प्रत्येक कार्यात यश मिळो ही सदिच्छा! आणखी कशी मदत करू शकतो?";
+      } else if (lang === "bn") {
+        return "অসংখ্য ধন্যবাদ! আপনাকে সাহায্য করতে পেরে আমি অত্যন্ত আনন্দিত। আপনার প্রতিটি উদ্যোগে সাফল্য কামনা করি! আর কীভাবে সাহায্য করতে পারি?";
+      } else if (lang === "gu") {
+        return "ખૂબ ખૂબ આભાર! તમારી મદદ કરવામાં મને ખૂબ આનંદ થયો. તમારા દરેક કાર્યમાં અદ્ભુત સફળતા મળે તેવી શુભેચ્છા! હું આગળ તમારી કેવી રીતે મદદ કરી શકું?";
+      } else if (lang === "ar") {
+        return "شكراً جزيلاً لك من القلب! يسعدني دائماً تقديم العون لك. أتمنى لك دوام التألق والنجاح المستمر في كل خطوة! كيف يمكنني مساعدتك أكثر اليوم؟";
+      } else if (lang === "es") {
+        return "¡Muchísimas gracias! Es una alegría enorme poder ayudarte. ¡Te deseo una continua inspiración, excelente salud y grandes éxitos en todo lo que emprendas hoy! ¿En qué más puedo colaborar?";
+      }
+      return "Thank you so much! It truly brings me joy to assist you. Wishing you continued inspiration, great health, and tremendous success in everything you do today! How else can I brighten your day or assist you?";
+    }
+
+    case "gratitude": {
+      if (lang === "te") {
+        return "మీకు మనస్ఫూర్తిగా స్వాగతం! మీకు సహాయం చేయడం నాకు ఎంతో సంతోషాన్ని ఇచ్చింది. మీ ప్రయాణంలో అంతా మంచే జరగాలని, సర్వదా విజయం వరించాలని కోరుకుంటున్నాను!";
+      } else if (lang === "ta") {
+        return "மனமார்ந்த நல்வரவு! உங்களுக்கு உதவுவது எனது பெருமை. உங்கள் வாழ்வில் அனைத்து நன்மைகளும் வெற்றியும் பெருக நல்வாழ்த்துகள்! நான் எப்போதும் உங்களுக்காக இங்கேயே இருக்கிறேன்.";
+      } else if (lang === "hi") {
+        return "आपका सहर्ष स्वागत है! आपकी सेवा करना मेरे लिए अत्यंत सुखद है। आपके जीवन में सुख, शांति और समृद्धि बनी रहे, यही मेरी मंगलकामना है!";
+      } else if (lang === "kn") {
+        return "ನಿಮಗೆ ಹೃತ್ಪೂರ್ವಕ ಸ್ವಾಗತ! ನಿಮಗೆ ಸಹಾಯ ಮಾಡುವುದು ನನ್ನ ಸೌಭಾಗ್ಯ. ನಿಮ್ಮ ಜೀವನದಲ್ಲಿ ಸುಖ ಮತ್ತು ಯಶಸ್ಸು ನೆಲೆಸಲಿ!";
+      } else if (lang === "ml") {
+        return "സ്വാഗതം! നിങ്ങളെ സഹായിക്കാൻ സാധിച്ചത് വലിയ സന്തോഷമാണ്. നിങ്ങളുടെ ജീവിതത്തിൽ ഐശ്വര്യവും വിജയവും ഉണ്ടാകട്ടെ എന്ന് ആശംസിക്കുന്നു!";
+      } else if (lang === "mr") {
+        return "आपले सहर्ष स्वागत आहे! आपली सेवा करणे माझ्यासाठी अत्यंत आनंदाचे आहे. आपल्या जीवनात सुख, समृद्धी आणि यश लाभो!";
+      } else if (lang === "bn") {
+        return "আপনাকে আন্তরিক স্বাগতম! আপনার সেবা করতে পেরে আমি অত্যন্ত আনন্দিত। আপনার জীবন সুখ, শান্তি ও সাফল্যে ভরে উঠুক!";
+      } else if (lang === "gu") {
+        return "તમારું હાર્દિક સ્વાગત છે! તમારી મદદ કરવી મારા માટે આનંદની વાત છે. તમારા જીવનમાં સુખ અને સફળતા બની રહે તેવી શુભકામના!";
+      } else if (lang === "ar") {
+        return "على الرحب والسعة دائماً! من دواعي سروري البالغ تقديم المساعدة لك. أتمنى لك وافر التوفيق والنجاح والسلام في كافة خطواتك!";
+      } else if (lang === "es") {
+        return "¡De nada, es todo un placer! Te deseo una jornada colmada de prosperidad, paz y grandes satisfacciones. ¡Siempre a tu entera disposición!";
+      }
+      return "You are most welcome! It is an absolute pleasure assisting you. Wishing you abundant success, happiness, and peace throughout your journey today. I'm always here for you!";
+    }
+  }
+}
+
 export async function askAmiroIntelligenceDemo(
   question: string,
   currentConvId?: string,
@@ -212,6 +349,33 @@ export async function askAmiroIntelligenceDemo(
       role: "assistant",
       content: answer,
       records,
+      created_at: new Date().toISOString()
+    };
+    const title = existingConv?.title || (question.length > 28 ? `${question.slice(0, 28)}...` : question);
+    const updatedConv: CopilotConversation = {
+      id: convId,
+      title,
+      updated_at: now,
+      language: lang
+    };
+    saveDemoConversation(updatedConv);
+    saveDemoMessages(convId, [...getDemoMessages(convId), userMessage, assistantMessage]);
+    return {
+      conversation: updatedConv,
+      userMessage,
+      assistantMessage
+    };
+  }
+
+  // 2. Immediate Well-Wisher Response for "ok", "good", "bye", "thanks"
+  const wellWisherType = detectWellWisherIntent(question);
+  if (wellWisherType) {
+    answer = getWellWisherResponse(wellWisherType, lang);
+    const assistantMessage: CopilotMessage = {
+      id: `msg-${Date.now()}-a`,
+      role: "assistant",
+      content: answer,
+      records: [],
       created_at: new Date().toISOString()
     };
     const title = existingConv?.title || (question.length > 28 ? `${question.slice(0, 28)}...` : question);

@@ -415,6 +415,25 @@ export function handleClientIntakeTurn(
 
   const existing = getClientIntakeSession(convId);
 
+  const isFarewell =
+    /^(bye|goodbye|good\s*bye|bye\s*bye|byee|byeee|cya|see\s*you|take\s*care|good\s*night|gn|have\s*a\s*(great|good|nice|wonderful)\s*day|alvida|tata)\b/i.test(question.trim()) ||
+    /^(సెలవు|మళ్ళీ కలుద్దాం|వీడ్కోలు|போய் வருகிறேன்|விடைபெறுகிறேன்|போயிட்டு வரேன்|अलविदा|फिर मिलेंगे|ಶುಭ ವಿದಾಯ|ಮತ್ತೆ ಸಿಗೋಣ|വിട|പോയി വരാം|निरोप|বিদায়|આવજો|مع السلامة|وداعاً)$/i.test(question.trim()) ||
+    /\b(see you later|see you soon|talk to you later|catch you later)\b/i.test(question);
+
+  if (isFarewell && existing) {
+    clearClientIntakeSession(convId);
+    return null;
+  }
+
+  const isCasualOrWellWish =
+    /^(ok|okay|k|fine|sure|good|great|nice|cool|super|thanks|thank you|thx)\b/i.test(question.trim()) ||
+    /^(సరే|ఓకే|బాగుంది|మంచిది|சரி|நல்லது|ठीक है|अच्छा|ಬಹಳ ಒಳ್ಳೆಯದು|ಸರಿ|ಶರಿ|ശരി|നല്ലത്|छान|ठीक आहे|ખૂબ સરસ|تمام|شكراً)$/i.test(question.trim());
+
+  if (isCasualOrWellWish && existing && !existing.data.company_name) {
+    clearClientIntakeSession(convId);
+    return null;
+  }
+
   if (isCancel && existing) {
     clearClientIntakeSession(convId);
     let cancelMsg =
@@ -570,6 +589,16 @@ export function handleClientIntakeTurn(
   }
 
   if (session.step === "company") {
+    // If user says casual pleasantries or goodbyes, cancel intake and let well-wisher responder handle it
+    const isCasualRemark =
+      /^(ok|okay|k|fine|sure|good|great|nice|cool|super|thanks|thank you|bye|goodbye|cya|yes|no|yep|nope)$/i.test(
+        question.trim()
+      );
+    if (isCasualRemark) {
+      clearClientIntakeSession(convId);
+      return null;
+    }
+
     // Prevent accidental trigger phrase repetition from being treated as a company name
     const isTriggerNoise =
       /^(help\s+me\s+)?(fill|add|create|new|start|register)\s*(client|details?|form|wizard|step\s*by\s*step)*$/i.test(
@@ -621,6 +650,21 @@ export function handleClientIntakeTurn(
   }
 
   if (session.step === "contact") {
+    if (isCasualOrWellWish) {
+      let promptMsg =
+        "Whenever you're ready, please provide the Primary Contact Person and business email address (e.g., 'Rajesh Kumar, rajesh@company.com'), or type 'cancel' to exit:";
+      if (lang === "te")
+        promptMsg =
+          "మీరు సిద్ధంగా ఉన్నప్పుడు, ప్రధాన సంప్రదింపు వ్యక్తి మరియు ఈమెయిల్‌ను నమోదు చేయండి (రద్దు చేయడానికి 'cancel' అని టైప్ చేయవచ్చు):";
+      else if (lang === "ta")
+        promptMsg =
+          "தயாராக இருக்கும்போது, தொடர்பு நபர் மற்றும் மின்னஞ்சலை உள்ளிடவும் (நிறுத்த 'cancel' என தட்டச்சு செய்க):";
+      else if (lang === "hi")
+        promptMsg =
+          "जब भी आप तैयार हों, मुख्य संपर्क व्यक्ति और ईमेल पता दर्ज करें (रोकने के लिए 'cancel' टाइप करें):";
+      return { answer: promptMsg, records: [] };
+    }
+
     if (isQuestion) {
       let promptMsg =
         "To continue with **Step 2 of 4**, please provide the **Primary Contact Person** and their **Email Address** (e.g., 'Rajesh Kumar, rajesh@company.com'):";
@@ -673,6 +717,21 @@ export function handleClientIntakeTurn(
   }
 
   if (session.step === "phone_industry") {
+    if (isCasualOrWellWish) {
+      let promptMsg =
+        "Whenever you're ready, please provide their contact phone number and business industry (e.g., '+91 98490 12345, Enterprise Cloud Services'), or type 'cancel' to exit:";
+      if (lang === "te")
+        promptMsg =
+          "మీరు సిద్ధంగా ఉన్నప్పుడు, వారి ఫోన్ నంబర్ మరియు వ్యాపార విభాగాన్ని నమోదు చేయండి (రద్దు చేయడానికి 'cancel' అని టైప్ చేయవచ్చు):";
+      else if (lang === "ta")
+        promptMsg =
+          "தயாராக இருக்கும்போது, தொலைபேசி எண் மற்றும் தொழில் துறையை உள்ளிடவும் (நிறுத்த 'cancel' என தட்டச்சு செய்க):";
+      else if (lang === "hi")
+        promptMsg =
+          "जब भी आप तैयार हों, कृपया फोन नंबर और उद्योग का नाम दर्ज करें (रोकने के लिए 'cancel' टाइप करें):";
+      return { answer: promptMsg, records: [] };
+    }
+
     if (isQuestion) {
       let promptMsg =
         "To continue with **Step 3 of 4**, please provide their **Phone Number** and **Industry** (e.g., '+91 98490 12345, Enterprise Cloud Services'):";
