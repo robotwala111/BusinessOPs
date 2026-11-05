@@ -495,88 +495,9 @@ export function handleClientIntakeTurn(
     return generateIntakeStepContent("ready", demoData, lang, convId);
   }
 
-  // Single-message comprehensive extractor
-  const hasEmail = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(
-    question
-  );
-  const hasPhone = /(\+?\d[\d\s-]{8,14}\d)/.test(question);
-  const compMatchInText = /(?:company|client|firm|enterprise|for|named)\s+([A-Za-z0-9\s&.-]{3,30})/i.exec(
-    question
-  );
-
-  if (hasEmail && compMatchInText && compMatchInText[1]) {
-    const emailMatch = question.match(
-      /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/
-    );
-    const phoneMatch = question.match(/(\+?\d[\d\s-]{8,14}\d)/);
-    const company = compMatchInText[1]
-      .replace(/^(is|called|named)\s+/i, "")
-      .trim();
-    const contact =
-      question
-        .replace(emailMatch ? emailMatch[0] : "", "")
-        .replace(phoneMatch ? phoneMatch[0] : "", "")
-        .replace(compMatchInText[0], "")
-        .replace(/[,;–-]/g, " ")
-        .trim()
-        .split(/\s+/)
-        .slice(0, 2)
-        .join(" ") || "Rajesh Kumar";
-
-    const extracted: ClientIntakeData = {
-      company_name: company,
-      client_short_name: company.split(/\s+/)[0] || company,
-      contact_person: contact,
-      email: emailMatch
-        ? emailMatch[0]
-        : `contact@${company.toLowerCase().replace(/[^a-z0-9]/g, "")}.com`,
-      phone: phoneMatch ? phoneMatch[0] : "+91 98490 12345",
-      industry: "Enterprise Cloud & Software Services",
-      address: "Plot 42, Hitech City, Madhapur",
-      city: "Hyderabad",
-      state: "Telangana",
-      country: "India",
-      gst_number: "36AAACA1234A1Z5",
-      pan_number: "AAACA1234A"
-    };
-    const session: ClientIntakeSession = {
-      convId,
-      step: "ready",
-      data: extracted,
-      lastUpdated: new Date().toISOString()
-    };
-    saveClientIntakeSession(session);
-    return generateIntakeStepContent("ready", extracted, lang, convId);
-  }
-
-  // If starting fresh or re-triggering
+  // If starting fresh or re-triggering, ALWAYS start at Step 1 (Company Name).
+  // Do NOT guess or extract the company name from the trigger command (e.g. "Help me fill client details step by step")!
   if (!existing || existing.step === "ready") {
-    // Check if initial message specified a company name
-    const compRegex = /(?:for|named|called|client)\s+([A-Za-z0-9\s&.-]{3,30})/i;
-    const match = compRegex.exec(question);
-    const foundComp =
-      match &&
-      match[1] &&
-      !/^(form|details?|profile|portal|wizard|me|us|please|a)$/i.test(
-        match[1].trim()
-      )
-        ? match[1].trim()
-        : null;
-
-    if (foundComp) {
-      const session: ClientIntakeSession = {
-        convId,
-        step: "contact",
-        data: {
-          company_name: foundComp,
-          client_short_name: foundComp.split(/\s+/)[0] || foundComp
-        },
-        lastUpdated: new Date().toISOString()
-      };
-      saveClientIntakeSession(session);
-      return generateIntakeStepContent("contact", session.data, lang, convId);
-    }
-
     const session: ClientIntakeSession = {
       convId,
       step: "company",
@@ -590,16 +511,107 @@ export function handleClientIntakeTurn(
   // Active session step progression
   const session = existing;
 
+  // Check if the user is asking a question rather than answering
+  const isQuestion =
+    /^(what|who|which|how|where|why|can|could|is|are|tell\s+me)\b/i.test(
+      question.trim()
+    ) ||
+    /\?$/.test(question.trim()) ||
+    /(ఏమిటి|ఎవరు|ఎక్కడ|എന്താണ്|ആരാണ്|எப்பொழுது|என்ன|யார்|ಏನು|ಯಾರು|क्या|कौन|काय|কী|શું|ماذا|من)/.test(
+      question
+    );
+
+  if (isQuestion) {
+    if (
+      /company(\s+name)?|కంపెనీ|കമ്പനി|நிறுவனம்|ಕಂಪನಿ|कंपनी/i.test(question)
+    ) {
+      if (session.data.company_name) {
+        let msg = `The company name is currently recorded as: **${session.data.company_name}**.\n\n*(To change it, type 'Change company to [New Name]').*`;
+        if (lang === "te") {
+          msg = `ప్రస్తుతం కంపెనీ పేరు **${session.data.company_name}** అని నమోదైంది.\n\n*(మార్చడానికి 'కంపెనీ పేరు మార్చండి' అని టైప్ చేయవచ్చు).*`;
+        } else if (lang === "ta") {
+          msg = `தற்போது நிறுவனத்தின் பெயர் **${session.data.company_name}** என பதிவு செய்யப்பட்டுள்ளது.\n\n*(மாற்ற விரும்பினால், புதிய பெயரை தட்டச்சு செய்யவும்).*`;
+        } else if (lang === "ml") {
+          msg = `നിലവിൽ കമ്പനി പേര് **${session.data.company_name}** എന്നാണ് രേഖപ്പെടുത്തിയിട്ടുള്ളത്.\n\n*(മാറ്റാൻ 'കമ്പനി പേര് മാറ്റുക' എന്ന് ടൈപ്പ് ചെയ്യാം).*`;
+        } else if (lang === "kn") {
+          msg = `ಪ್ರಸ್ತುತ ಕಂಪನಿ ಹೆಸರು **${session.data.company_name}** ಎಂದು ದಾಖಲಾಗಿದೆ.\n\n*(ಬದಲಾಯಿಸಲು ಹೊಸ ಹೆಸರನ್ನು ಟೈಪ್ ಮಾಡಿ).*`;
+        } else if (lang === "hi") {
+          msg = `वर्तमान में कंपनी का नाम **${session.data.company_name}** दर्ज है।\n\n*(बदलने के लिए 'कंपनी का नाम बदलें' टाइप करें).*`;
+        }
+
+        const nextPrompt = generateIntakeStepContent(
+          session.step,
+          session.data,
+          lang,
+          convId
+        ).answer;
+        return {
+          answer: `${msg}\n\n${nextPrompt}`,
+          records: []
+        };
+      } else {
+        return generateIntakeStepContent("company", {}, lang, convId);
+      }
+    }
+  }
+
+  // Check if the user wants to change or correct the company name explicitly
+  const changeMatch = /(?:change|update|set|fix|correct)\s+(?:(?:the\s+)?company(?:\s+name)?\s+(?:to|is)\s+)?([A-Za-z0-9\s&.-]{2,40})/i.exec(
+    question
+  );
+  if (changeMatch && changeMatch[1] && !/^(form|details?|wizard|portal)$/i.test(changeMatch[1].trim())) {
+    const newComp = changeMatch[1].trim();
+    session.data.company_name = newComp;
+    session.data.client_short_name = newComp.split(/\s+/)[0] || newComp;
+    session.step = "contact";
+    session.lastUpdated = new Date().toISOString();
+    saveClientIntakeSession(session);
+    return generateIntakeStepContent("contact", session.data, lang, convId);
+  }
+
   if (session.step === "company") {
+    // Prevent accidental trigger phrase repetition from being treated as a company name
+    const isTriggerNoise =
+      /^(help\s+me\s+)?(fill|add|create|new|start|register)\s*(client|details?|form|wizard|step\s*by\s*step)*$/i.test(
+        question.trim()
+      ) ||
+      /^(client\s+details?|details\s+step\s+by\s+step|step\s+by\s+step|client\s+form|form|details)$/i.test(
+        question.trim()
+      );
+
+    if (isTriggerNoise || isQuestion) {
+      let promptMsg =
+        "Please provide the official or business **Company Name** of your client (e.g., 'Acme Innovations' or 'Apex Technologies'):";
+      if (lang === "te")
+        promptMsg =
+          "దయచేసి మీ క్లయింట్ యొక్క అధికారిక **కంపెనీ పేరు** నమోదు చేయండి (ఉదా: 'Apex Technologies' లేదా 'Acme Corp'):";
+      else if (lang === "ta")
+        promptMsg =
+          "தயவுசெய்து உங்கள் வாடிக்கையாளரின் அதிகாரப்பூர்வ **நிறுவனத்தின் பெயர்** உள்ளிடவும் (எ.கா: 'Apex Technologies'):";
+      else if (lang === "ml")
+        promptMsg =
+          "ദയവായി നിങ്ങളുടെ ക്ലയന്റിന്റെ ഔദ്യോഗിക **കമ്പനി പേര്** നൽകുക (ഉദാ: 'Apex Technologies'):";
+      else if (lang === "kn")
+        promptMsg =
+          "ದಯವಿಟ್ಟು ನಿಮ್ಮ ಕ್ಲೈಂಟ್‌ನ ಅಧಿಕೃತ **ಕಂಪನಿಯ ಹೆಸರು** ನಮೂದಿಸಿ (ಉದಾ: 'Apex Technologies'):";
+      else if (lang === "hi")
+        promptMsg =
+          "कृपया अपने क्लाइंट का आधिकारिक **कंपनी नाम** दर्ज करें (उदा. 'Apex Technologies' या 'Acme Corp'):";
+      return { answer: promptMsg, records: [] };
+    }
+
     let comp = question
       .replace(
         /^(my company is|company name is|company is|name is|it is|it's|the company is)\s+/i,
         ""
       )
+      .replace(/[.,;]+$/, "")
       .trim();
+
     if (!comp || comp.length < 2) {
       comp = "Apex Innovations";
     }
+
     session.data.company_name = comp;
     session.data.client_short_name = comp.split(/\s+/)[0] || comp;
     session.step = "contact";
@@ -609,6 +621,27 @@ export function handleClientIntakeTurn(
   }
 
   if (session.step === "contact") {
+    if (isQuestion) {
+      let promptMsg =
+        "To continue with **Step 2 of 4**, please provide the **Primary Contact Person** and their **Email Address** (e.g., 'Rajesh Kumar, rajesh@company.com'):";
+      if (lang === "te")
+        promptMsg =
+          "**దశ 2/4** కొనసాగించడానికి, దయచేసి ప్రధాన సంప్రదింపు వ్యక్తి మరియు ఈమెయిల్‌ను నమోదు చేయండి:";
+      else if (lang === "ta")
+        promptMsg =
+          "**படி 2/4** தொடர, முக்கிய தொடர்பு நபர் மற்றும் அவரது மின்னஞ்சலை உள்ளிடவும்:";
+      else if (lang === "ml")
+        promptMsg =
+          "**ഘട്ടം 2/4** തുടരുന്നതിന്, പ്രധാന വ്യക്തിയുടെ പേരും ഇമെയിൽ വിലാസവും നൽകുക:";
+      else if (lang === "kn")
+        promptMsg =
+          "**ಹಂತ 2/4** ಮುಂದುವರಿಸಲು, ಮುಖ್ಯ ಸಂಪರ್ಕ ವ್ಯಕ್ತಿ ಮತ್ತು ಇಮೇಲ್ ವಿಳಾಸವನ್ನು ನಮೂದಿಸಿ:";
+      else if (lang === "hi")
+        promptMsg =
+          "**चरण 2/4** जारी रखने के लिए, कृपया मुख्य संपर्क व्यक्ति और उनका ईमेल पता दर्ज करें:";
+      return { answer: promptMsg, records: [] };
+    }
+
     const emailMatch = question.match(
       /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/
     );
@@ -621,6 +654,7 @@ export function handleClientIntakeTurn(
       .replace(emailMatch ? emailMatch[0] : "", "")
       .replace(/[,;–-]/g, " ")
       .replace(/^(contact is|contact person is|name is|person is)\s+/i, "")
+      .replace(/[.,;]+$/, "")
       .trim();
     if (!contact || contact.length < 2) {
       contact = "Rajesh Kumar";
@@ -639,12 +673,34 @@ export function handleClientIntakeTurn(
   }
 
   if (session.step === "phone_industry") {
+    if (isQuestion) {
+      let promptMsg =
+        "To continue with **Step 3 of 4**, please provide their **Phone Number** and **Industry** (e.g., '+91 98490 12345, Enterprise Cloud Services'):";
+      if (lang === "te")
+        promptMsg =
+          "**దశ 3/4** కొనసాగించడానికి, దయచేసి వారి ఫోన్ నంబర్ మరియు వ్యాపార విభాగాన్ని నమోదు చేయండి:";
+      else if (lang === "ta")
+        promptMsg =
+          "**படி 3/4** தொடர, தொலைபேசி எண் மற்றும் தொழில் துறையை உள்ளிடவும்:";
+      else if (lang === "ml")
+        promptMsg =
+          "**ഘട്ടം 3/4** തുടരുന്നതിന്, അവരുടെ ഫോൺ നമ്പറും ബിസിനസ്സ് മേഖലയും നൽകുക:";
+      else if (lang === "kn")
+        promptMsg =
+          "**ಹಂತ 3/4** ಮುಂದುವರಿಸಲು, ಅವರ ಫೋನ್ ಸಂಖ್ಯೆ ಮತ್ತು ಉದ್ಯಮ ಕ್ಷೇತ್ರವನ್ನು ನಮೂದಿಸಿ:";
+      else if (lang === "hi")
+        promptMsg =
+          "**चरण 3/4** जारी रखने के लिए, कृपया फोन नंबर और उद्योग का नाम दर्ज करें:";
+      return { answer: promptMsg, records: [] };
+    }
+
     const phoneMatch = question.match(/(\+?\d[\d\s-]{8,14}\d)/);
     const phone = phoneMatch ? phoneMatch[0].trim() : "+91 98490 12345";
     let industry = question
       .replace(phoneMatch ? phoneMatch[0] : "", "")
       .replace(/[,;–-]/g, " ")
       .replace(/^(phone is|mobile is|industry is)\s+/i, "")
+      .replace(/[.,;]+$/, "")
       .trim();
     if (!industry || industry.length < 2) {
       industry = "Enterprise Cloud & Software Services";
@@ -749,3 +805,4 @@ export function handleClientIntakeTurn(
 
   return null;
 }
+

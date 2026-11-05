@@ -97,6 +97,32 @@ describe("Conversation language stickiness and consistency", () => {
     expect(turn5.assistantMessage.records.length).toBeGreaterThanOrEqual(2);
   });
 
+  it("does not accidentally treat trigger phrase 'Help me fill client details step by step.' as company name and answers questions safely", async () => {
+    const convId = "conv-test-no-accidental-company";
+
+    // Turn 1: User clicks suggestion chip with exact phrase from screenshot
+    const turn1 = await askAmiroIntelligenceDemo("Help me fill client details step by step.", convId);
+    expect(turn1.assistantMessage.content).toContain("Step 1 of 4: Company Name");
+    expect(turn1.assistantMessage.content).not.toContain("details step by step");
+    expect(turn1.assistantMessage.content).not.toContain("Step 2 of 4");
+
+    // Turn 2: User asks "what is the company name"
+    const turn2 = await askAmiroIntelligenceDemo("what is the company name", convId);
+    // Must NOT treat "what is the company name" as contact person or company!
+    expect(turn2.assistantMessage.content).not.toContain("Contact saved: what is the company name");
+    expect(turn2.assistantMessage.content).toContain("Company Name");
+
+    // Turn 3: User enters legitimate company name
+    const turn3 = await askAmiroIntelligenceDemo("Acme Global Solutions", convId);
+    expect(turn3.assistantMessage.content).toContain("Company Name saved: **Acme Global Solutions**");
+    expect(turn3.assistantMessage.content).toContain("Step 2 of 4: Primary Contact & Email");
+
+    // Turn 4: User asks "what is the company name" to verify
+    const turn4 = await askAmiroIntelligenceDemo("what is the company name", convId);
+    expect(turn4.assistantMessage.content).toContain("Acme Global Solutions");
+    expect(turn4.assistantMessage.content).not.toContain("Contact saved: what is the company name");
+  });
+
   it("supports instant demo auto-fill when user explicitly requests demo", async () => {
     const res = await askAmiroIntelligenceDemo("fill client form with demo", "conv-test-autofill-demo");
     expect(res.assistantMessage.content).toContain("Apex Global Technologies");
