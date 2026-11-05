@@ -188,12 +188,8 @@ export async function askAmiroIntelligenceDemo(
     if (detected !== "en") {
       lang = detected;
     } else if (existingLanguage && existingLanguage !== "auto" && existingLanguage !== "en") {
-      const isEnglishQuery = /\b(what|who|which|how|where|show|list|tell|give|fill|create|help|is|are|the|can|name)\b/i.test(question);
-      if (isEnglishQuery) {
-        lang = "en";
-      } else {
-        lang = existingLanguage as SupportedLanguage;
-      }
+      // Retain active conversation language: never switch back to English mid-chat
+      lang = existingLanguage as SupportedLanguage;
     } else {
       lang = "en";
     }
@@ -267,6 +263,52 @@ export async function askAmiroIntelligenceDemo(
       openTicketsCount: openTickets.length,
       expiringContractsCount: expiringContracts.length
     },
+    clients: clients.map((c) => ({
+      name: c.company_name,
+      industry: c.industry || "Enterprise",
+      status: c.status,
+      contact: c.contact_person,
+      email: c.email,
+      phone: c.phone,
+      city: c.city,
+      state: c.state
+    })),
+    projects: projects.map((p) => ({
+      code: p.project_code,
+      name: p.project_name,
+      client: clientMap.get(p.client_id) || "Client",
+      status: p.status,
+      manager: p.assigned_manager,
+      targetEndDate: p.target_end_date
+    })),
+    invoices: invoices.map((inv) => ({
+      invoiceNumber: inv.invoice_number,
+      client: clientMap.get(inv.client_id) || "Client",
+      totalAmount: inv.total_amount,
+      balanceDue: inv.balance_due,
+      dueDate: inv.due_date,
+      status: inv.status
+    })),
+    quotations: quotations.map((q) => ({
+      quoteNumber: q.quotation_number,
+      client: clientMap.get(q.client_id) || "Client",
+      amount: q.total_amount,
+      status: q.status
+    })),
+    contracts: contracts.map((c) => ({
+      contractNumber: c.contract_number,
+      client: clientMap.get(c.client_id) || "Client",
+      startDate: c.start_date,
+      endDate: c.end_date,
+      status: c.status
+    })),
+    tickets: tickets.map((t) => ({
+      ticketNumber: t.ticket_number,
+      subject: t.title,
+      priority: t.priority,
+      status: t.status,
+      client: clientMap.get(t.client_id) || "Client"
+    })),
     overdueInvoices: overdueInvoices.map((inv) => ({
       invoiceNumber: inv.invoice_number,
       client: clientMap.get(inv.client_id) || "Client",
@@ -287,28 +329,19 @@ export async function askAmiroIntelligenceDemo(
     }))
   };
 
-  const isGreeting = /^(hi|hello|hey|greetings|namaste|vanakkam|namaskar|hola)\b/i.test(question.trim()) ||
-    /^(नमस्ते|నమస్కారం|నమస్తే|నమస్కారాలు|ನಮಸ್ಕಾರ|வணக்கம்|നമസ്കാരം|नमस्कार|নমস্কার|નમસ્તે|مرحبا)/i.test(question.trim()) ||
-    /^(hi|hello|hey|नमस्ते|నమస్కారం|నమస్తే|ನಮಸ್ಕಾರ|வணக்கம்|നമസ്കാരം)$/i.test(question.trim());
-  const isIdentity = /\b(who are you|what('s| is| are)? your name|what your name|your name|name please|what can you do|who made you|tum kaun ho|tera naam|naam kya hai|nuvvu evaru|neeku emi telusu|nee peru|un peyar|unga peru|tell me what you do)\b/i.test(question) ||
-    /^(who are you|what your name|what is your name|your name)$/i.test(question.trim()) ||
-    /(உன் பெயர்|உங்கள் பெயர்|நீ பெயர்|నీ పేరు|మీరు ఎవరు|तुम्हारा नाम|आप कौन हैं|ನಿಮ್ಮ ಹೆಸರು|ನೀವು ಯಾರು|ಯಾರು ನೀವು|നിങ്ങളുടെ പേര്|നിങ്ങൾ ആരാണ്|ആരാണ് നിങ്ങൾ|नाव काय)/.test(question);
-  const isLocation = /\b(where are you|where r u|kahan ho|ekkada unnav|enga irukinga|evideyanu)\b/i.test(question);
-  const isConversationalHelp = /\b(let me know|tell me|what do you want|kya chahiye|em kavali|how can you help)\b/i.test(question);
-  const isOffTopic = /\b(joke|story|capital of|weather|recipe|sing|movie|president|prime minister|cricket|football|who is the president)\b/i.test(question);
-  const isQuickConversational = isGreeting || isIdentity || isLocation || isConversationalHelp || isOffTopic;
+  const isPureGreeting = /^(hi|hello|hey|namaste|vanakkam|namaskar|hola|నమస్తే|నమస్కారం|नमस्ते|ನಮಸ್ಕಾರ|வணக்கம்|നമസ്കാരം)$/i.test(question.trim());
 
-  // Attempt live LLM inference (e.g. Qwen 2.5 via Ollama/OpenRouter/API) if configured on server and query is business-oriented
+  // Attempt live LLM inference (e.g. Qwen 2.5 via Ollama/OpenRouter/API) if configured on server
   let llmAnswer: string | null = null;
-  if (!isQuickConversational) {
+  if (!isPureGreeting) {
     try {
-      const prior = getDemoMessages(convId).slice(-2).map((m) => ({
+      const prior = getDemoMessages(convId).slice(-4).map((m) => ({
         role: m.role as "user" | "assistant",
         content: m.content
       }));
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 9000);
+      const timeoutId = setTimeout(() => controller.abort(), 35000);
 
       const response = await fetch("/api/copilot/chat", {
         method: "POST",
@@ -325,8 +358,8 @@ export async function askAmiroIntelligenceDemo(
 
       if (response.ok) {
         const payload = await response.json();
-        if (payload && typeof payload.answer === "string" && !payload.fallback) {
-          llmAnswer = payload.answer;
+        if (payload && typeof payload.answer === "string" && !payload.fallback && payload.answer.trim()) {
+          llmAnswer = payload.answer.trim();
         }
       }
     } catch {
@@ -1154,18 +1187,61 @@ export async function askAmiroIntelligenceDemo(
       }
 
       default: {
-        const isGreeting = /^(hi|hello|hey|greetings|namaste|vanakkam|namaskar|hola)\b/i.test(question.trim()) ||
+        const trimmed = question.trim().toLowerCase();
+        const isHowAreYou = /\b(how are you|how do you do|how r u|kaise ho|kya haal|kya chal raha|ela unnav|ela unnaru|hegiddira|eppadi irukkinga|enthoke|vishesham)\b/i.test(question);
+        const isGreeting = isHowAreYou ||
+          /^(hi|hello|hey|greetings|namaste|vanakkam|namaskar|hola)\b/i.test(question.trim()) ||
           /^(नमस्ते|నమస్కారం|నమస్తే|నమస్కారాలు|ನಮಸ್ಕಾರ|வணக்கம்|നമസ്കാരം|नमस्कार|নমস্কার|નમસ્તે|مرحبا)/i.test(question.trim()) ||
-          /\b(kaise ho|kya haal|kya chal raha|ela unnav|ela unnaru|hegiddira|eppadi irukkinga|enthoke|vishesham)\b/i.test(question) ||
-          /^(hi|hello|hey|नमस्ते|నమస్కారం|నమస్తే|ನಮಸ್ಕಾರ|வணக்கம்|നമസ്കാരം)$/i.test(question.trim());
+          /\b(good morning|good afternoon|good evening)\b/i.test(question);
+
+        const isAcknowledgement = /^(good|great|nice|fine|cool|awesome|super|ok|okay|sure|thanks|thank you|thx|well done|thankyou)$/i.test(trimmed) ||
+          /\b(धन्यवाद|ధన్యవాదాలు|நன்றி|നന്ദി|ಧನ್ಯವಾದಗಳು)\b/i.test(question);
+
         const isIdentity = /\b(who are you|what('s| is| are)? your name|what your name|your name|name please|what can you do|who made you|tum kaun ho|tera naam|naam kya hai|nuvvu evaru|neeku emi telusu|nee peru|un peyar|unga peru|tell me what you do)\b/i.test(question) ||
           /^(who are you|what your name|what is your name|your name)$/i.test(question.trim()) ||
           /(உன் பெயர்|உங்கள் பெயர்|நீ பெயர்|నీ పేరు|మీరు ఎవరు|तुम्हारा नाम|आप कौन हैं|ನಿಮ್ಮ ಹೆಸರು|ನೀವು ಯಾರು|ಯಾರು ನೀವು|ನಿಮ್ಮ ಹೆಸರೇನು|നിങ്ങളുടെ പേര്|നിങ്ങൾ ആരാണ്|ആരാണ് നിങ്ങൾ|नाव काय)/.test(question);
+
         const isLocation = /\b(where are you|where r u|kahan ho|ekkada unnav|enga irukinga|evideyanu)\b/i.test(question);
         const isConversationalHelp = /\b(let me know|tell me|what do you want|kya chahiye|em kavali|how can you help)\b/i.test(question);
         const isOffTopic = /\b(joke|story|capital of|weather|recipe|sing|movie|president|prime minister|cricket|football|who is the president)\b/i.test(question);
 
-        if (isGreeting && !isIdentity) {
+        if (isHowAreYou) {
+          if (lang === "te") {
+            answer = "నేను బాగున్నాను, ధన్యవాదాలు! నేను **అమీరో ఇంటెలిజెన్స్ (Amiro Intelligence)**, మీ వ్యాపార కార్యకలాపాల AI సహాయకుడిని. ఈరోజు మన క్లయింట్లు, ప్రాజెక్ట్‌లు లేదా ఇన్వాయిస్‌ల గురించి మీకు ఎలా సహాయపడగలను?";
+          } else if (lang === "ta") {
+            answer = "நான் நலமாக உள்ளேன், நன்றி! நான் **அமிரோ இன்டலிஜென்ஸ் (Amiro Intelligence)**, உங்கள் நிறுவன வணிக செயல்பாட்டு உதவியாளர். இன்று வாடிக்கையாளர்கள், திட்டப்பணிகள் அல்லது இன்வாய்ஸ்கள் குறித்து உங்களுக்கு எவ்வாறு உதவ வேண்டும்?";
+          } else if (lang === "hi") {
+            answer = "मैं बहुत अच्छा हूँ, धन्यवाद! मैं **अमीरू इंटेलिजेंस (Amiro Intelligence)** हूँ, आपका बिज़नेस ऑपरेशन्स AI सहायक। आज मैं आपके क्लाइंट्स, सक्रिय प्रोजेक्ट्स या इनवॉइस से जुड़े कार्यों में कैसे सहायता कर सकता हूँ?";
+          } else if (lang === "kn") {
+            answer = "ನಾನು ಚೆನ್ನಾಗಿದ್ದೇನೆ, ಧನ್ಯವಾದಗಳು! ನಾನು **ಅಮಿರೋ ಇಂಟೆಲಿಜೆನ್ಸ್**, ನಿಮ್ಮ ವ್ಯಾಪಾರ ಕಾರ್ಯಾಚರಣೆಗಳ AI ಸಹಾಯಕ. ಇಂದು ನಮ್ಮ ಗ್ರಾಹಕರು, ಪ್ರಾಜೆಕ್ಟ್‌ಗಳು ಅಥವಾ ಇನ್‌ವಾಯ್ಸ್‌ಗಳ ಬಗ್ಗೆ ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?";
+          } else if (lang === "ml") {
+            answer = "എനിക്ക് സുഖമാണ്, നന്ദി! ഞാൻ **അമിറോ ഇന്റലിജൻസ്** ആണ്, നിങ്ങളുടെ ബിസിനസ്സ് പ്രവർത്തന AI അസിസ്റ്റന്റ്. ഇന്ന് നമ്മുടെ ക്ലയന്റുകൾ, പ്രോജക്റ്റുകൾ അല്ലെങ്കിൽ ഇൻവോയ്സുകൾ എന്നിവയിൽ നിങ്ങളെ എങ്ങനെ സഹായിക്കണം?";
+          } else if (lang === "mr") {
+            answer = "मी चांगला आहे, धन्यवाद! मी **अमिरो इंटेलिजन्स** आहे, तुमचा बिझनेस ऑपरेशन्स सहाय्यक. मी आज तुम्हाला कशी मदत करू शकतो?";
+          } else if (lang === "bn") {
+            answer = "আমি ভালো আছি, ধন্যবাদ! আমি **আমিরো ইন্টেলিজেন্স**, আপনার ব্যবসায়িক অপারেশন এআই সহকারী। আজ আপনাকে কীভাবে সাহায্য করতে পারি?";
+          } else if (lang === "gu") {
+            answer = "હું મજામાં છું, આભાર! હું **અમિરો ઇન્ટેલિજન્સ** છું, તમારો બિઝનેસ ઓપરેશન્સ સહાયક. આજે હું તમને કેવી રીતે મદદ કરી શકું?";
+          } else if (lang === "ar") {
+            answer = "أنا بخير، شكراً لك! أنا **أميرو انتلجنس**، مساعدك الذكي لإدارة العمليات التجارية. كيف يمكنني مساعدتك اليوم؟";
+          } else {
+            answer = "I'm doing great, thank you! I am **Amiro Intelligence**, your enterprise business operations assistant for Amiro Tech Solutions. How can I assist you with our clients, delivery projects, or financial records today?";
+          }
+        } else if (isAcknowledgement) {
+          if (lang === "te") {
+            answer = "సహాయం చేయగలిగినందుకు సంతోషం! మన క్రియాశీల ప్రాజెక్ట్‌లు, బకాయి ఇన్వాయిస్‌లు, క్లయింట్ డైరెక్టరీ లేదా ఆర్థిక నివేదికల గురించి ఎప్పుడైనా వివరాలు అడగవచ్చు.";
+          } else if (lang === "ta") {
+            answer = "உங்களுக்கு உதவ முடிந்ததில் மிக்க மகிழ்ச்சி! செயலில் உள்ள திட்டப்பணிகள், நிலுவை இன்வாய்ஸ்கள் அல்லது நிதி அறிக்கைகள் குறித்து எப்போது வேண்டுமானாலும் கேளுங்கள்.";
+          } else if (lang === "hi") {
+            answer = "आपकी सहायता करके खुशी हुई! सक्रिय प्रोजेक्ट्स, ओवरड्यू इनवॉइस या वित्तीय रिपोर्ट्स के बारे में कभी भी बेझिझक पूछें।";
+          } else if (lang === "kn") {
+            answer = "ನಿಮಗೆ ಸಹಾಯ ಮಾಡಲು ಸಂತೋಷವಾಗಿದೆ! ಸಕ್ರಿಯ ಪ್ರಾಜೆಕ್ಟ್‌ಗಳು, ಬಾಕಿ ಇನ್‌ವಾಯ್ಸ್‌ಗಳು ಅಥವಾ ಹಣಕಾಸು ವರದಿಗಳ ಬಗ್ಗೆ ಯಾವಾಗ ಬೇಕಾದರೂ ಕೇಳಿ.";
+          } else if (lang === "ml") {
+            answer = "സഹായിക്കാൻ കഴിഞ്ഞതിൽ സന്തോഷം! സജീവ പ്രോജക്റ്റുകൾ, കുടിശ്ശികയുള്ള ഇൻവോയ്സുകൾ അല്ലെങ്കിൽ സാമ്പത്തിക റിപ്പോർട്ടുകൾ എന്നിവയെക്കുറിച്ച് എപ്പോൾ വേണമെങ്കിലും ചോദിക്കാം.";
+          } else {
+            answer = "Glad to assist! Feel free to ask about our active projects, overdue invoices, client directory, quotations, or financial performance whenever you are ready.";
+          }
+        } else if (isGreeting && !isIdentity) {
           if (lang === "ml") {
             answer = "നമസ്കാരം! 👋 സ്വാഗതം. ഞാൻ നിങ്ങളുടെ AI അസിസ്റ്റന്റാണ്. ഇന്ന് ഞാൻ നിങ്ങളെ എങ്ങനെ സഹായിക്കണം? ഞങ്ങളുടെ ക്ലയന്റുകൾ, ഇൻവോയ്സുകൾ അല്ലെങ്കിൽ പ്രോജക്റ്റുകൾ എന്നിവയെക്കുറിച്ച് ചോദിക്കൂ.";
           } else if (lang === "te") {
@@ -1177,7 +1253,7 @@ export async function askAmiroIntelligenceDemo(
           } else if (lang === "ta") {
             answer = "வணக்கம்! 👋 வருக. நான் உங்கள் AI உதவியாளர். இன்று நான் உங்களுக்கு எவ்வாறு உதவ முடியும்? எங்கள் வாடிக்கையாளர்கள், இன்வாய்ஸ்கள் அல்லது திட்டப்பணிகள் குறித்து கேளுங்கள்.";
           } else if (lang === "mr") {
-            answer = "नमस्कार! 👋 स्वागत आहे. मी तुमचा AI सहाय्यक आहे. आज मी तुम्हाला कशी मदत करू शकतो? आमचे क्लायंट, इनव्हॉइस, सक्रिय प्रोजेक्ट्स किंवा कोटेशन्सबद्दल विचारा.";
+            answer = "नमस्कार! 👋 स्वागत आहे. मी तुमचा AI सहाय्यಕ आहे. आज मी तुम्हाला कशी मदत करू शकतो? आमचे क्लायंट, इनव्हॉइस, सक्रिय प्रोजेक्ट्स किंवा कोटेशन्सबद्दल विचारा.";
           } else if (lang === "bn") {
             answer = "নমস্কার! 👋 স্বাগতম। আমি আপনার এআই সহকারী। আজ আমি আপনাকে কীভাবে সাহায্য করতে পারি? আমাদের ক্লায়েন্ট, ইনভয়েস, সক্রিয় প্রকল্প বা কোটেশন সম্পর্কে জিজ্ঞাসা করুন।";
           } else if (lang === "gu") {
@@ -1252,40 +1328,95 @@ export async function askAmiroIntelligenceDemo(
             answer = "I am **Amiro Intelligence**, your dedicated business operations copilot. I am strictly authorized to assist with this application's business records (clients, invoices, quotations, projects, expenses, and financials). Please ask an application-related question.";
           }
         } else {
+          // Check if question mentions any project code or project name
+          const matchedProject = projects.find((p) =>
+            question.toLowerCase().includes(p.project_code.toLowerCase()) ||
+            (p.project_name && question.toLowerCase().includes(p.project_name.toLowerCase()))
+          );
+
           // Check if question mentions any client name specifically
-          const matchedClient = clients.find((c) => question.toLowerCase().includes(c.company_name.toLowerCase()));
-          if (matchedClient) {
+          const matchedClient = clients.find((c) =>
+            question.toLowerCase().includes(c.company_name.toLowerCase()) ||
+            (c.contact_person && question.toLowerCase().includes(c.contact_person.toLowerCase()))
+          );
+
+          // Check if question mentions an invoice number
+          const matchedInvoice = invoices.find((inv) =>
+            question.toLowerCase().includes(inv.invoice_number.toLowerCase())
+          );
+
+          if (matchedProject) {
+            answer = `### 📋 Project Details: ${matchedProject.project_name} (${matchedProject.project_code})\n\n` +
+              `• **Client:** ${clientMap.get(matchedProject.client_id) || "Enterprise Client"}\n` +
+              `• **Current Status:** **${matchedProject.status.toUpperCase()}**\n` +
+              `• **Assigned Manager:** ${matchedProject.assigned_manager || "Operations Delivery Lead"}\n` +
+              `• **Target Completion:** ${matchedProject.target_end_date || "Ongoing"}\n` +
+              `• **Budget Allocation:** ₹${Number(matchedProject.budget || 0).toLocaleString("en-IN")}\n\n` +
+              `You can track its milestones in the Projects section.`;
+            records.push({
+              id: matchedProject.id,
+              entity: "project",
+              label: `${matchedProject.project_code} – ${matchedProject.project_name}`,
+              href: "/projects",
+              detail: `Target: ${matchedProject.target_end_date} · ${matchedProject.status.toUpperCase()}`
+            });
+          } else if (matchedClient) {
             const clientInvoices = invoices.filter((i) => i.client_id === matchedClient.id);
             const clientProjects = projects.filter((p) => p.client_id === matchedClient.id);
             const clientQuotes = quotations.filter((q) => q.client_id === matchedClient.id);
-            answer = `### Client 360 Summary: ${matchedClient.company_name}\n\n` +
+            answer = `### 🏢 Client 360 Summary: ${matchedClient.company_name}\n\n` +
+              `• **Primary Contact:** ${matchedClient.contact_person || "Operations Lead"} (${matchedClient.email || "N/A"})\n` +
+              `• **Phone:** ${matchedClient.phone || "N/A"}\n` +
               `• **Industry:** ${matchedClient.industry || "Enterprise"}\n` +
               `• **Commercial Status:** ${matchedClient.status.toUpperCase()}\n` +
               `• **Invoices Issued:** ${clientInvoices.length} (${clientInvoices.filter((i) => i.status === "paid").length} settled)\n` +
               `• **Delivery Engagements:** ${clientProjects.length} projects\n` +
               `• **Active Proposals:** ${clientQuotes.length} quotations\n\n` +
-              `You can review their complete commercial profile in the Clients module.`;
+              `You can review their complete corporate profile in the Clients directory.`;
+            records.push({
+              id: matchedClient.id,
+              entity: "client",
+              label: matchedClient.company_name,
+              href: `/clients/${matchedClient.id}`,
+              detail: `${matchedClient.industry || "Enterprise"} · Status: ${matchedClient.status}`
+            });
+          } else if (matchedInvoice) {
+            answer = `### 🧾 Invoice Details: ${matchedInvoice.invoice_number}\n\n` +
+              `• **Client:** ${clientMap.get(matchedInvoice.client_id) || "Enterprise Client"}\n` +
+              `• **Total Amount:** ₹${Number(matchedInvoice.total_amount).toLocaleString("en-IN")}\n` +
+              `• **Balance Due:** ₹${Number(matchedInvoice.balance_due).toLocaleString("en-IN")}\n` +
+              `• **Due Date:** ${matchedInvoice.due_date || "N/A"}\n` +
+              `• **Status:** **${matchedInvoice.status.toUpperCase()}**\n\n` +
+              `View full line items in Finance & Invoices.`;
+            records.push({
+              id: matchedInvoice.id,
+              entity: "invoice",
+              label: `${matchedInvoice.invoice_number} – ${clientMap.get(matchedInvoice.client_id) || "Client"}`,
+              href: "/invoices",
+              detail: `₹${Number(matchedInvoice.balance_due).toLocaleString("en-IN")} due (${matchedInvoice.due_date})`
+            });
           } else {
-            if (lang === "ml") {
-              answer = "അമിറോ ടെക് സൊല്യൂഷൻസ് പ്രവർത്തനങ്ങളിൽ നിങ്ങളെ സഹായിക്കാൻ ഞാൻ ഇവിടെയുണ്ട്. ഞങ്ങളുടെ ക്ലയന്റുകൾ, ഇൻവോയ്സുകൾ, പ്രോജക്റ്റുകൾ, കൊട്ടേഷനുകൾ അല്ലെങ്കിൽ ഫോം ഓട്ടോ-ഫിൽ എന്നിവയെക്കുറിച്ച് എന്ത് വിവരമാണ് അറിയേണ്ടതെന്ന് ദയവായി വ്യക്തമാക്കൂ.";
+            // Dynamic factual summary based on actual application records
+            if (lang === "te") {
+              answer = `ప్రస్తుతం మన సిస్టమ్‌లో **${clients.length} నమోదైన క్లయింట్లు**, **${projects.length} డెలివరీ ప్రాజెక్ట్‌లు** మరియు **₹${monthlyFin.revenue.toLocaleString("en-IN")} నెలవారీ ఆదాయం** ఉన్నాయి. క్లయింట్లు, పెండింగ్ కొటేషన్లు, ఓవర్‌డ్యూ ఇన్వాయిస్‌లు లేదా ప్రాజెక్ట్‌ల గురించి మీరు ఏదైనా వివరాలు అడగవచ్చు.`;
             } else if (lang === "ta") {
-              answer = "நான் அமிரோ டெக் சொல்யூஷன்ஸ் செயல்பாடுகளில் உதவ தயாராக உள்ளேன். எங்கள் வாடிக்கையாளர்கள், இன்வாய்ஸ்கள், செயலில் உள்ள திட்டப்பணிகள் அல்லது மேற்கோள்கள் குறித்து நீங்கள் என்ன பார்க்க விரும்புகிறீர்கள் என்று தயவுசெய்து தெரிவிக்கவும்.";
-            } else if (lang === "te") {
-              answer = "నేను అమీరో టెక్ సొల్యూషన్స్ కార్యకలాపాలలో సహాయం చేయడానికి ఇక్కడ ఉన్నాను. మన క్లయింట్లు, ఇన్వాయిస్‌లు, కొటేషన్లు లేదా ప్రాజెక్టుల వివరాలు కావాలంటే దయచేసి అడగండి.";
+              answer = `தற்போது நமது கணினியில் **${clients.length} பதிவுசெய்யப்பட்ட வாடிக்கையாளர்கள்**, **${projects.length} திட்டப்பணிகள்** மற்றும் **₹${monthlyFin.revenue.toLocaleString("en-IN")} மாதாந்திர வருவாய்** பதிவாகியுள்ளது. வாடிக்கையாளர்கள், நிலுவை மேற்கோள்கள், இன்வாய்ஸ்கள் அல்லது திட்டப்பணிகள் குறித்து என்னிடம் கேளுங்கள்.`;
             } else if (lang === "hi") {
-              answer = "मैं अमीरू टेक सॉल्यूशंस ऑपरेशन्स में आपकी सहायता के लिए तैयार हूँ। कृपया बताएं यदि आप हमारे क्लाइंट्स, इनवॉइस, कोटेशन या प्रोजेक्ट्स से संबंधित कोई डेटा देखना चाहते हैं।";
+              answer = `वर्तमान में हमारे सिस्टम में **${clients.length} पंजीकृत क्लाइंट्स**, **${projects.length} डिलीवरी प्रोजेक्ट्स** और **₹${monthlyFin.revenue.toLocaleString("en-IN")} का मासिक राजस्व** दर्ज है। आप किसी भी क्लाइंट, प्रोजेक्ट, लंबित कोटेशन या ओवरड्यू इनवॉइस के बारे में सीधे पूछ सकते हैं।`;
+            } else if (lang === "ml") {
+              answer = `നിലവിൽ നമ്മുടെ സിസ്റ്റത്തിൽ **${clients.length} രജിസ്റ്റർ ചെയ്ത ക്ലയന്റുകൾ**, **${projects.length} പ്രോജക്റ്റുകൾ**, **₹${monthlyFin.revenue.toLocaleString("en-IN")} മാസ വരുമാനം** എന്നിവയുണ്ട്. ക്ലയന്റുകൾ, പ്രോജക്റ്റുകൾ, കുടിശ്ശികയുള്ള ഇൻവോയ്സുകൾ അല്ലെങ്കിൽ കൊട്ടേഷനുകൾ എന്നിവയെക്കുറിച്ച് ചോദിക്കൂ.`;
             } else if (lang === "kn") {
-              answer = "ನಾನು ಅಮಿರೋ ಟೆಕ್ ಸೊಲ್ಯೂಷನ್ಸ್ ಕಾರ್ಯಾಚರಣೆಗಳಲ್ಲಿ ಸಹಾಯ ಮಾಡಲು ಇಲ್ಲಿದ್ದೇನೆ. ನಮ್ಮ ಗ್ರಾಹಕರು, ಇನ್‌ವಾಯ್ಸ್‌ಗಳು, ಪ್ರಾಜೆಕ್ಟ್‌ಗಳು ಅಥವಾ ಕೊಟೇಶನ್‌ಗಳ ಬಗ್ಗೆ ನೀವು ಏನನ್ನು ಪರಿಶೀಲಿಸಲು ಬಯಸುತ್ತೀರಿ ಎಂದು ದಯವಿಟ್ಟು ತಿಳಿಸಿ.";
+              answer = `ಪ್ರಸ್ತುತ ನಮ್ಮ ಸಿಸ್ಟಂನಲ್ಲಿ **${clients.length} ನೋಂದಾಯಿತ ಗ್ರಾಹಕರು**, **${projects.length} ಡೆಲಿವರಿ ಪ್ರಾಜೆಕ್ಟ್‌ಗಳು** ಮತ್ತು **₹${monthlyFin.revenue.toLocaleString("en-IN")} ಮಾಸಿಕ ಆದಾಯ** ದಾಖಲಾಗಿದೆ. ಗ್ರಾಹಕರು, ಪ್ರಾಜೆಕ್ಟ್‌ಗಳು ಅಥವಾ ಬಾಕಿ ಇನ್‌ವಾಯ್ಸ್‌ಗಳ ಬಗ್ಗೆ ನೀವು ಕೇಳಬಹುದು.`;
             } else if (lang === "mr") {
-              answer = "मी अमिरो टेक सोल्युशन्सच्या ऑपरेशन्समध्ये मदत करण्यासाठी येथे आहे. आमचे क्लायंट, इनव्हॉइस किंवा प्रोजेक्ट्सबद्दल तुम्हाला काय तपासायचे आहे ते कृपया सांगा.";
+              answer = `सध्या आमच्या सिस्टीममध्ये **${clients.length} नोंदणीकृत ग्राहक**, **${projects.length} सक्रिय प्रकल्प** आणि **₹${monthlyFin.revenue.toLocaleString("en-IN")} चे मासिक उत्पन्न** नोंदवले गेले आहे. आपण कोणत्याही ग्राहकाबद्दल किंवा इनव्हॉइसबद्दल विचारू शकता.`;
             } else if (lang === "bn") {
-              answer = "আমি আমিরো টেক সলিউশন অপারেশনে আপনাকে সহায়তা করার জন্য এখানে আছি। আমাদের ক্লায়েন্ট, ইনভয়েস বা প্রকল্প সম্পর্কে আপনি কী জানতে চান দয়া করে জানান।";
+              answer = `বর্তমানে আমাদের সিস্টেমে **${clients.length} নিবন্ধিত ক্লায়েন্ট**, **${projects.length} সক্রিয় প্রকল্প** এবং **₹${monthlyFin.revenue.toLocaleString("en-IN")} মাসিক আয়** রয়েছে। আপনি যেকোনো ক্লায়েন্ট বা ইনভয়েস সম্পর্কে সরাসরি জিজ্ঞাসা করতে পারেন।`;
             } else if (lang === "gu") {
-              answer = "હું અમિરો ટેક સોલ્યુશન્સ ઓપરેશન્સમાં તમારી મદદ કરવા માટે અહીં છું. અમારા ગ્રાહકો, ઇન્વૉઇસેસ અથવા પ્રોજેક્ટ્સ વિશે તમે શું તપાસવા માંગો છો તે કૃપા કરીને જણાવો.";
+              answer = `હાલમાં અમારી સિસ્ટમમાં **${clients.length} નોંધાયેલા ગ્રાહકો**, **${projects.length} ડિલિવરી પ્રોજેક્ટ્સ** અને **₹${monthlyFin.revenue.toLocaleString("en-IN")} ની માસિક આવક** નોંધાયેલ છે. તમે કોઈપણ ગ્રાહક અથવા ઇન્વૉઇસ વિશે પૂછી શકો છો.`;
             } else if (lang === "ar") {
-              answer = "أنا هنا لمساعدتك في عمليات حلول أميرو التقنية. يُرجى إخباري بما ترغب في مراجعته بخصوص عملائنا أو فواتيرنا أو مشاريعنا أو عروض أسعارنا.";
+              answer = `لدينا حالياً **${clients.length} عملاء مسجلين**، و **${projects.length} مشاريع تسليم نشطة**، و **₹${monthlyFin.revenue.toLocaleString("en-IN")} إيرادات شهرية محققة**. يمكنك الاستفسار عن أي عميل أو فاتورة أو مشروع.`;
             } else {
-              answer = "I'm here to assist with Amiro Tech Solutions operations. Please let me know what you would like to check regarding our clients, invoices, active projects, or quotations.";
+              answer = `We currently have **${clients.length} registered clients**, **${projects.length} active delivery projects**, and **₹${monthlyFin.revenue.toLocaleString("en-IN")}** in realized monthly revenue. You can ask me about any client, project manager, pending quotation, or overdue invoice.`;
             }
           }
         }

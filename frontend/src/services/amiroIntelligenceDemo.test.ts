@@ -1,5 +1,7 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi, afterEach } from "vitest";
 import { askAmiroIntelligenceDemo, getDemoConversations } from "./amiroIntelligenceDemo";
+import { clientService } from "./clientService";
+import { projectService } from "./projectService";
 
 describe("Conversation language stickiness and consistency", () => {
   beforeEach(() => {
@@ -7,6 +9,8 @@ describe("Conversation language stickiness and consistency", () => {
     if (typeof window !== "undefined") {
       window.localStorage.clear();
     }
+    clientService.invalidateCache();
+    projectService.invalidateCache();
   });
 
   it("locks the conversation language to Telugu across subsequent turns", async () => {
@@ -143,6 +147,73 @@ describe("Conversation language stickiness and consistency", () => {
     expect(turn2.assistantMessage.content).toContain("Apex Global Technologies");
     expect(turn2.assistantMessage.content).toContain("/clients/new?autofill=custom");
     expect(turn2.assistantMessage.records.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("handles conversational greetings like 'How are you' and acknowledgments like 'good' gracefully without repetitive hardcoded fallback", async () => {
+    const convId = "conv-test-conversational-courtesy";
+
+    // Turn 1: User asks "How are you" (from user's screenshot)
+    const turn1 = await askAmiroIntelligenceDemo("How are you", convId);
+    expect(turn1.assistantMessage.content).not.toContain("I'm here to assist with Amiro Tech Solutions operations. Please let me know what you would like to check");
+    expect(turn1.assistantMessage.content).toMatch(/I'm doing great|Amiro Intelligence/);
+
+    // Turn 2: User responds "good" (from user's screenshot)
+    const turn2 = await askAmiroIntelligenceDemo("good", convId);
+    expect(turn2.assistantMessage.content).not.toContain("I'm here to assist with Amiro Tech Solutions operations. Please let me know what you would like to check");
+    expect(turn2.assistantMessage.content).toMatch(/Glad to assist|Feel free to ask/);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("answers queries about specific application projects and clients with real records", async () => {
+    vi.spyOn(projectService, "getProjects").mockResolvedValue([
+      {
+        id: "proj-1",
+        client_id: "client-1",
+        project_code: "PRI-5130",
+        project_name: "TUV LIMS",
+        project_type: "Software",
+        description: "LIMS Lab Automation",
+        status: "planned",
+        priority: "high",
+        assigned_manager: "Rajesh Kumar",
+        target_end_date: "2027-02-01",
+        project_value: 150000,
+        tags: [],
+        created_at: new Date().toISOString()
+      }
+    ] as any);
+
+    vi.spyOn(clientService, "getClients").mockResolvedValue([
+      {
+        id: "client-1",
+        company_name: "Apex Global Technologies",
+        industry: "Enterprise Cloud",
+        status: "active",
+        contact_person: "Rajesh Kumar",
+        email: "rajesh@apex.com",
+        phone: "+91 98490 12345",
+        created_at: new Date().toISOString()
+      }
+    ] as any);
+
+    // Project lookup
+    const projRes = await askAmiroIntelligenceDemo("PRI-5130", "conv-test-project-lookup");
+    expect(projRes.assistantMessage.content).toContain("PRI-5130");
+    expect(projRes.assistantMessage.content).toContain("TUV LIMS");
+    expect(projRes.assistantMessage.content).toContain("Assigned Manager");
+
+    // Client lookup
+    const clientRes = await askAmiroIntelligenceDemo("Apex Global Technologies", "conv-test-client-lookup");
+    expect(clientRes.assistantMessage.content).toContain("Apex Global Technologies");
+    expect(clientRes.assistantMessage.content).toContain("Client 360 Summary");
+
+    // General application status returns dynamic operational metrics rather than a static string
+    const generalRes = await askAmiroIntelligenceDemo("summarize system status", "conv-test-general-status");
+    expect(generalRes.assistantMessage.content).not.toBe("I'm here to assist with Amiro Tech Solutions operations. Please let me know what you would like to check regarding our clients, invoices, active projects, or quotations.");
+    expect(generalRes.assistantMessage.content).toMatch(/registered clients|delivery projects|realized monthly revenue/);
   });
 });
 

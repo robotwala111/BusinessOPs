@@ -66,23 +66,29 @@ export async function generateCopilotAnswer(
   preferredLanguage?: string
 ): Promise<ProviderResult> {
   const config = providerConfiguration();
+  const isQwenOrLocal = config.model.toLowerCase().includes("qwen") || config.url.includes("localhost") || config.url.includes("127.0.0.1");
 
   const langInstruction = preferredLanguage && preferredLanguage !== "auto" && LANGUAGE_NAMES[preferredLanguage]
     ? `CRITICAL - MANDATORY LANGUAGE LOCK: The conversation is locked to ${LANGUAGE_NAMES[preferredLanguage]}. You MUST respond exclusively in ${LANGUAGE_NAMES[preferredLanguage]}. Do NOT transfer, drift, or switch to English or any other language under any circumstance, even if the user asks a short question or mixes in English terms. Keep the entire conversation strictly in ${LANGUAGE_NAMES[preferredLanguage]}.`
-    : "CRITICAL - MULTILINGUAL TEXT-TO-TEXT: You must understand and answer in the EXACT SAME LANGUAGE as the user's question. If the user asks in Hindi (हिंदी), reply in clear Hindi. If the user asks in Telugu (తెలుగు), reply in Telugu. If the user asks in Tamil (தமிழ்), reply in Tamil. If the user asks in Spanish (español), reply in Spanish. If the user asks in English or Hinglish, reply in that natural language.";
+    : "CRITICAL - MULTILINGUAL TEXT-TO-TEXT: You must understand and answer in the EXACT SAME LANGUAGE as the user's question. If the user asks in Hindi (हिंदी), reply in clear Hindi. If the user asks in Telugu (తెలుగు), reply in Telugu. If the user asks in Tamil (தமிழ்), reply in Tamil. If the user asks in Malayalam (മലയാളം), reply in Malayalam. If the user asks in Kannada (ಕನ್ನಡ), reply in Kannada. If the user asks in Spanish (español), reply in Spanish. If the user asks in English or Hinglish, reply in that natural language.";
+
+  const formatInstruction = isQwenOrLocal
+    ? "Answer directly, accurately, and concisely in natural markdown. Do not wrap your response in JSON unless specifically requested."
+    : 'Return a JSON object with exactly one string property: {"answer":"..."}';
 
   const messages: ProviderMessage[] = [
     {
       role: "system",
       content: [
-        "You are Amiro Intelligence, the dedicated AI business operations copilot for Amiro Tech Solutions.",
+        "You are Amiro Intelligence, the dedicated AI business operations assistant and copilot for Amiro Tech Solutions.",
         langInstruction,
-        "CRITICAL - STRICT APPLICATION SCOPE: You are exclusively an enterprise business copilot for this application. Answer questions strictly and solely based on the authorized business facts provided in the user prompt (clients, leads, quotes, invoices, payments, projects, expenses, contracts, support tickets).",
-        "REJECT UNRELATED QUESTIONS: If the user asks questions unrelated to this business application (such as general knowledge, coding tutorials, recipes, chit-chat, outside topics, or non-business queries), politely decline in the active conversation language, stating that you are Amiro Intelligence and are authorized only to provide insights on this company's business operations and records.",
-        "NEVER HALLUCINATE: Never invent records, client names, invoices, amounts, dates, or financial totals. If the provided business facts are empty or missing, state that clearly and accurately in the active language.",
-        "FINANCIAL ACCURACY: Exact financial numbers and currency amounts (₹) are calculated by the application; repeat them with 100% precision and distinguish realized revenue from operational expenses.",
-        "FORMATTING: Format your reply cleanly with markdown bullet points, bold key figures, and concise business tone.",
-        'Return a JSON object with exactly one string property: {"answer":"..."}'
+        "ROLE & APPLICATION SCOPE: You are an enterprise business copilot for this application. Answer questions accurately and directly based on the authorized business facts provided in the prompt (clients, leads, quotes, invoices, payments, projects, expenses, contracts, support tickets).",
+        "CONVERSATIONAL COURTESY: If the user greets you ('hi', 'hello', 'how are you'), asks your name or identity ('what is your name', 'who are you'), or says 'good'/'thank you', reply warmly, politely, and professionally as Amiro Intelligence, ready to help with their business operations.",
+        "REJECT UNRELATED TOPICS: If the user asks questions completely outside this business application (such as cooking recipes, movie trivia, politics, general coding tutorials), politely decline in the active conversation language and offer to assist with Amiro Tech Solutions records.",
+        "NEVER HALLUCINATE: Never invent fake records, client names, invoices, amounts, or dates. Use the verified business facts with 100% precision.",
+        "FINANCIAL ACCURACY: Exact financial numbers and currency amounts (₹) are calculated by the application; repeat them with precision.",
+        "FORMATTING: Format your reply cleanly with markdown bullet points and bold key figures.",
+        formatInstruction
       ].join(" ")
     },
     ...history,
@@ -94,19 +100,18 @@ export async function generateCopilotAnswer(
 
   let response: Response;
   try {
-    const isQwenOrLocal = config.model.toLowerCase().includes("qwen") || config.url.includes("localhost") || config.url.includes("127.0.0.1");
     const requestPayload: Record<string, unknown> = {
       model: config.model,
       messages,
-      temperature: 0.1,
-      max_tokens: isQwenOrLocal ? 280 : 800,
+      temperature: 0.2,
+      max_tokens: isQwenOrLocal ? 260 : 800,
     };
     if (isQwenOrLocal) {
       // Optimize CPU inference speed and latency for local Ollama/Qwen
       requestPayload.options = {
-        num_predict: 280,
-        num_ctx: 2048,
-        temperature: 0.1,
+        num_predict: 260,
+        temperature: 0.2,
+        top_p: 0.9,
       };
     } else {
       requestPayload.response_format = { type: "json_object" };
@@ -119,7 +124,7 @@ export async function generateCopilotAnswer(
         "Content-Type": "application/json"
       },
       body: JSON.stringify(requestPayload),
-      signal: AbortSignal.timeout(30_000),
+      signal: AbortSignal.timeout(45_000),
       cache: "no-store"
     });
   } catch (error) {
@@ -142,42 +147,80 @@ export async function generateCopilotAnswer(
     usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
   };
   const content = data.choices?.[0]?.message?.content;
-  if (typeof content !== "string") {
+  if (typeof content !== "string" || !content.trim()) {
     throw new Error("The AI provider returned no answer.");
   }
 
-  let parsed: unknown = null;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    const match = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (match && match[1]) {
-      try {
-        parsed = JSON.parse(match[1]);
-      } catch {
-        parsed = null;
+  let answerString = "";
+
+  if (isQwenOrLocal) {
+    // For local open-weight models, accept direct markdown or flexible JSON without fragile schema rejections
+    let raw = content.trim();
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const val = (parsed as Record<string, unknown>).answer ||
+          (parsed as Record<string, unknown>).reply ||
+          (parsed as Record<string, unknown>).response ||
+          (parsed as Record<string, unknown>).text ||
+          (parsed as Record<string, unknown>).message;
+        if (typeof val === "string" && val.trim()) {
+          raw = val.trim();
+        }
       }
+    } catch {
+      const match = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (match && match[1]) {
+        try {
+          const parsed = JSON.parse(match[1]);
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            const val = (parsed as Record<string, unknown>).answer ||
+              (parsed as Record<string, unknown>).reply ||
+              (parsed as Record<string, unknown>).response ||
+              (parsed as Record<string, unknown>).text ||
+              (parsed as Record<string, unknown>).message;
+            if (typeof val === "string" && val.trim()) {
+              raw = val.trim();
+            }
+          }
+        } catch {
+          // keep raw text
+        }
+      }
+    }
+    answerString = raw;
+  } else {
+    // Cloud structured JSON parsing for external providers
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      const match = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      if (match && match[1]) {
+        try {
+          parsed = JSON.parse(match[1]);
+        } catch {
+          parsed = null;
+        }
+      }
+    }
+
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      if (
+        !("answer" in parsed) ||
+        Object.keys(parsed).length !== 1 ||
+        typeof (parsed as { answer: unknown }).answer !== "string" ||
+        !(parsed as { answer: string }).answer.trim() ||
+        (parsed as { answer: string }).answer.length > 8000
+      ) {
+        throw new Error("The AI provider returned an invalid structured answer.");
+      }
+      answerString = (parsed as { answer: string }).answer.trim();
+    } else {
+      throw new Error("The AI provider returned an invalid structured answer.");
     }
   }
 
-  let answerString = "";
-  if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-    if (
-      !("answer" in parsed) ||
-      Object.keys(parsed).length !== 1 ||
-      typeof (parsed as { answer: unknown }).answer !== "string" ||
-      !(parsed as { answer: string }).answer.trim() ||
-      (parsed as { answer: string }).answer.length > 8000
-    ) {
-      throw new Error("The AI provider returned an invalid structured answer.");
-    }
-    answerString = (parsed as { answer: string }).answer.trim();
-  } else if (typeof content === "string" && content.trim()) {
-    // Direct textual / markdown response from Qwen or open-weights engine
-    answerString = content.trim();
-  } else {
-    throw new Error("The AI provider returned an invalid structured answer.");
-  }
   const inputTokens = typeof data.usage?.prompt_tokens === "number" ? data.usage.prompt_tokens : 100;
   const outputTokens = typeof data.usage?.completion_tokens === "number" ? data.usage.completion_tokens : 50;
 
