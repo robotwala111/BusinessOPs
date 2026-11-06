@@ -8,7 +8,23 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+import av
 from faster_whisper import WhisperModel
+
+# PyAV 19+ compatibility: PyAV 19 removed 'metadata_errors' from av.open,
+# which faster-whisper still passes. We safely strip it if the installed PyAV rejects it.
+_orig_av_open = av.open
+
+def _safe_av_open(*args, **kwargs):
+    try:
+        return _orig_av_open(*args, **kwargs)
+    except TypeError as e:
+        if "metadata_errors" in str(e):
+            kwargs.pop("metadata_errors", None)
+            return _orig_av_open(*args, **kwargs)
+        raise
+
+av.open = _safe_av_open
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 logger = logging.getLogger("amiro-whisper")
