@@ -25,9 +25,6 @@ if (-not (Test-Path $psqlPath)) {
 
 if (-not $Password) {
     Write-Host "Please provide the PostgreSQL password for user '$User':" -ForegroundColor Yellow
-    $Password = Read-Host -AsSecureString
-    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)
-    $Password = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
 }
 
 $env:PGPASSWORD = $Password

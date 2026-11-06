@@ -525,7 +525,7 @@ export default function DashboardPage() {
             ) : (
               <tr>
                 <td colSpan={4} className="exec-empty-row">
-                  No client accounts yet. <Link href="/clients/onboard">Onboard your first client →</Link>
+                  No client accounts yet. <Link href="/clients/new">Add your first client →</Link>
                 </td>
               </tr>
             )}

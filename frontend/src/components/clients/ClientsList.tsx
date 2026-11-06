@@ -65,7 +65,7 @@ export function ClientsList() {
   const leadCount = clients.filter((c) => c.status === "lead" || c.status === "proposal_sent").length;
 
   return (
-    <section className="module-page">
+    <section className="module-page clients-directory">
       {/* Header */}
       <div className="module-header">
         <div>
@@ -76,11 +76,6 @@ export function ClientsList() {
           </p>
         </div>
         <div className="module-header-actions" style={{ display: "flex", gap: 10 }}>
-          <Link href="/clients/onboard">
-            <button type="button" className="wizard-btn-primary">
-              ✨ Onboard Client (Wizard)
-            </button>
-          </Link>
           <Link href="/clients/new">
             <button type="button" className="wizard-btn-ghost">
               + Quick Add
@@ -180,10 +175,8 @@ export function ClientsList() {
             title="No clients found"
             description="No client accounts match your active search or filters."
             action={
-              <Link href="/clients/onboard">
-                <button type="button" className="wizard-btn-primary">
-                  Launch Client Onboarding Wizard
-                </button>
+              <Link href="/clients/new">
+                <button type="button" className="wizard-btn-primary">Add your first client</button>
               </Link>
             }
           />

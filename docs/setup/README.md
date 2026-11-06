@@ -28,6 +28,8 @@ Email: demo-admin@example.local
 Password: Admin@123
 ```
 
+The local PostgreSQL bootstrap seeds this demo account in `auth.users` because business records such as clients reference that table for `created_by`. If an existing local database has not been seeded, client creation now falls back to a null `created_by` for the synthetic demo identity rather than failing. To seed the identity for local audit attribution, run only the bootstrap SQL as a PostgreSQL administrator; avoid replaying all migrations against an established database. This affects only local PostgreSQL; do not seed the demo account in production Supabase.
+
 ## Supabase Migrations
 
 Apply migrations from `backend/supabase/migrations/` in order:

@@ -39,17 +39,6 @@ export function QuickCreateMenu() {
         <div className="quick-create-dropdown">
           <div className="dropdown-section-title">Client & CRM</div>
           <Link
-            href="/clients/onboard"
-            className="dropdown-menu-item highlighted"
-            onClick={() => setIsOpen(false)}
-          >
-            <span className="dropdown-item-icon">✨</span>
-            <div className="dropdown-item-text">
-              <strong>Onboard Client (Wizard)</strong>
-              <small>7-step guided enterprise setup</small>
-            </div>
-          </Link>
-          <Link
             href="/clients/new"
             className="dropdown-menu-item"
             onClick={() => setIsOpen(false)}

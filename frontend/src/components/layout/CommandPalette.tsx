@@ -19,7 +19,6 @@ interface CommandItem {
 
 const defaultCommands: CommandItem[] = [
   // Quick Actions
-  { id: "act-onboard", category: "Quick Action", title: "Onboard New Client (7-Step Wizard)", subtitle: "Launch complete onboarding pipeline", href: "/clients/onboard", icon: "✨" },
   { id: "act-new-client", category: "Quick Action", title: "New Client (Quick Entry)", subtitle: "Create an organization profile", href: "/clients/new", icon: "🏢" },
   { id: "act-new-quote", category: "Quick Action", title: "Create New Quotation", subtitle: "Prepare commercial quote with line items", href: "/quotations/new", icon: "📄" },
   { id: "act-new-lead", category: "Quick Action", title: "Record New Lead", subtitle: "Add prospect to commercial funnel", href: "/leads", icon: "🎯" },

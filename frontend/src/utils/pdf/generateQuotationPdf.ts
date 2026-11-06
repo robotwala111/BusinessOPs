@@ -25,7 +25,7 @@ const theme = {
   white: [255, 255, 255] as [number, number, number]
 };
 
-export async function generateQuotationPdf(quotation: Quotation) {
+export async function createQuotationPdfAttachment(quotation: Quotation): Promise<{ blob: Blob; filename: string }> {
   const [{ jsPDF }, autoTableModule] = await Promise.all([
     import("jspdf"),
     import("jspdf-autotable")
@@ -44,7 +44,20 @@ export async function generateQuotationPdf(quotation: Quotation) {
 
   const logo = await loadLogoDataUrl(getLogoUrl(settings));
   renderDocument(doc, autoTable, data, logo);
-  doc.save(getQuotationPdfFilename(quotation.quotation_number, filenamePrefix.toLowerCase()));
+  return {
+    blob: doc.output("blob"),
+    filename: getQuotationPdfFilename(quotation.quotation_number, filenamePrefix.toLowerCase())
+  };
+}
+
+export async function generateQuotationPdf(quotation: Quotation) {
+  const { blob, filename } = await createQuotationPdfAttachment(quotation);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function hexToRgb(value: string, fallback: [number, number, number]): [number, number, number] {

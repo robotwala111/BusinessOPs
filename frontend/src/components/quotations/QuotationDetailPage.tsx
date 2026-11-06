@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { requireSupabase } from "@/services/moduleHelpers";
 import { allowedTransitions } from "@/lib/workflowRules";
 import { historyService } from "@/services/historyService";
 import type { EntityHistory } from "@/types/workflow";
@@ -26,12 +27,15 @@ function value(val?: string | null) {
 }
 
 export function QuotationDetailPage({ quotationId }: QuotationDetailPageProps) {
-  const { user } = useAuth();
+  const { user, isConfigured, isDemoMode } = useAuth();
   const router = useRouter();
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isConvertingInvoice, setIsConvertingInvoice] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [emailNotice, setEmailNotice] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [pdfErrorMessage, setPdfErrorMessage] = useState("");
   const [history, setHistory] = useState<EntityHistory[]>([]);
@@ -71,6 +75,85 @@ export function QuotationDetailPage({ quotationId }: QuotationDetailPageProps) {
       );
     } finally {
       setIsGeneratingPdf(false);
+    }
+  }
+
+  async function handleSendEmail() {
+    if (!quotation) return;
+    setIsSendingEmail(true);
+    setEmailError("");
+    setEmailNotice("");
+    try {
+      let token: string | undefined;
+      if (isConfigured) {
+        const { data, error } = await requireSupabase().auth.getSession();
+        if (error) throw error;
+        token = data.session?.access_token;
+        if (!token) throw new Error("Your session has expired. Sign in again.");
+      } else if (!isDemoMode) {
+        throw new Error("Email sending requires a configured account.");
+      }
+
+      const { createQuotationPdfAttachment } = await import("@/utils/pdf/generateQuotationPdf");
+      const { blob, filename } = await createQuotationPdfAttachment(quotation);
+      const form = new FormData();
+      form.append("pdf", blob, filename);
+      form.append("filename", filename);
+      form.append("message", "");
+      form.append("quotation", JSON.stringify({
+        id: quotation.id,
+        quotation_number: quotation.quotation_number,
+        title: quotation.title,
+        status: quotation.status,
+        valid_until: quotation.valid_until,
+        client: {
+          email: quotation.client?.email,
+          company_name: quotation.client?.company_name
+        }
+      }));
+      const response = await fetch(`/api/quotations/${quotation.id}/email`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form
+      });
+      const payload = await response.json() as { error?: string; recipient?: string; status?: Quotation["status"]; trackingWarning?: string };
+      if (!response.ok) throw new Error(payload.error || "Unable to send quotation email.");
+
+      setEmailNotice(payload.trackingWarning || `Quotation sent to ${payload.recipient}.`);
+      const sentAt = new Date().toISOString();
+      if (isDemoMode) {
+        try {
+          const updatedQuotation = quotation.status === "approved"
+            ? await quotationService.transitionQuotation(quotation.id, "sent", user?.id ?? null)
+            : { ...quotation, sent_at: sentAt };
+          setQuotation(updatedQuotation);
+          await historyService.record({
+            entity_type: "quotation",
+            entity_id: quotation.id,
+            event_type: quotation.status === "approved" ? "quotation_emailed" : "quotation_resent",
+            previous_value: { status: quotation.status },
+            new_value: { status: "sent", recipient: payload.recipient },
+            description: `Quotation ${quotation.quotation_number} emailed to ${payload.recipient}`,
+            actor_id: user?.id ?? null,
+            metadata: { recipient: payload.recipient }
+          });
+          setHistory(await historyService.list("quotation", quotation.id));
+        } catch {
+          setQuotation((current) => current ? { ...current, status: "sent", sent_at: sentAt } : current);
+          setEmailNotice("The email was accepted, but the local quotation history could not be updated. Refresh before sending it again.");
+        }
+      } else {
+        setQuotation((current) => current ? { ...current, status: payload.status || current.status, sent_at: payload.status === "sent" ? sentAt : current.sent_at } : current);
+        try {
+          setHistory(await historyService.list("quotation", quotation.id));
+        } catch {
+          setEmailNotice("Email accepted by the mail server. Refresh the page to reload the activity history.");
+        }
+      }
+    } catch (error) {
+      setEmailError(error instanceof Error ? error.message : "Unable to send quotation email.");
+    } finally {
+      setIsSendingEmail(false);
     }
   }
 
@@ -170,6 +253,18 @@ export function QuotationDetailPage({ quotationId }: QuotationDetailPageProps) {
             Print
           </Button>
 
+          {(["approved", "sent"].includes(quotation.status)) ? (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={isSendingEmail || (!isConfigured && !isDemoMode) || !quotation.client?.email}
+              onClick={() => void handleSendEmail()}
+              title={!isConfigured && !isDemoMode ? "Configure authentication to send email." : !quotation.client?.email ? "Add an email address to the client profile." : undefined}
+            >
+              {isSendingEmail ? "Sending quotation…" : quotation.status === "sent" ? "Resend quotation" : "Send quotation"}
+            </Button>
+          ) : null}
+
           {quotation.status === "draft" ? (
             <Link href={`/quotations/${quotation.id}/edit`}>
               <Button type="button" variant="secondary">Edit Quotation</Button>
@@ -241,6 +336,8 @@ export function QuotationDetailPage({ quotationId }: QuotationDetailPageProps) {
       {pdfErrorMessage ? (
         <div className="form-error">{pdfErrorMessage}</div>
       ) : null}
+      {emailError ? <div className="form-error" role="alert">{emailError}</div> : null}
+      {emailNotice ? <div className="form-note" role="status">{emailNotice}</div> : null}
 
       <div className="quotation-kpi-grid">
         <Card>
@@ -341,6 +438,7 @@ export function QuotationDetailPage({ quotationId }: QuotationDetailPageProps) {
           </div>
         </Card>
       </div>
+
     </section>
   );
 }
