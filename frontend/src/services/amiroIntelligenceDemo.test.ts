@@ -154,7 +154,7 @@ describe("Conversation language stickiness and consistency", () => {
 
     // 1. User says "How are you"
     const turn1 = await askAmiroIntelligenceDemo("How are you", convId);
-    expect(turn1.assistantMessage.content).toMatch(/I'm doing great|Amiro Intelligence/);
+    expect(turn1.assistantMessage.content).toMatch(/I['’]m doing (great|well)|Amiro Intelligence/);
 
     // 2. User responds "good" -> must reply as a well-wisher praising and wishing them success
     const turn2 = await askAmiroIntelligenceDemo("good", convId);

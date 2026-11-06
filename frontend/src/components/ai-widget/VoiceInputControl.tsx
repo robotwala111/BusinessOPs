@@ -6,67 +6,208 @@ import { SUPPORTED_SPEECH_LANGUAGES } from "@/lib/speechLanguage";
 
 interface VoiceInputControlProps {
   onTranscript: (text: string) => void;
+  onLiveTranscript?: (text: string) => void;
+  onListeningStart?: () => void;
   language: WidgetLanguage;
   disabled?: boolean;
 }
 
-export function VoiceInputControl({ onTranscript, language, disabled }: VoiceInputControlProps) {
+interface SpeechRecognitionLike {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+  onresult: ((event: any) => void) | null;
+  onerror: ((event: any) => void) | null;
+  onend: (() => void) | null;
+}
+
+function getSpeechRecognitionClass(): (new () => SpeechRecognitionLike) | null {
+  if (typeof window === "undefined") return null;
+  const win = window as unknown as {
+    SpeechRecognition?: new () => SpeechRecognitionLike;
+    webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+  };
+  return win.SpeechRecognition || win.webkitSpeechRecognition || null;
+}
+
+export function VoiceInputControl({
+  onTranscript,
+  onLiveTranscript,
+  onListeningStart,
+  language,
+  disabled
+}: VoiceInputControlProps) {
   const [isListening, setIsListening] = useState(false);
   const [isProcessingWhisper, setIsProcessingWhisper] = useState(false);
+  const [liveText, setLiveText] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const speechRecognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const hasCapturedSpeechRef = useRef(false);
+  const lastSpokenTextRef = useRef("");
+  const isListeningRef = useRef(false);
 
   const getLanguageLabel = () => {
     if (language === "auto") return "Auto-detect language";
     return SUPPORTED_SPEECH_LANGUAGES[language]?.nativeName || language.toUpperCase();
   };
 
+  const getRecognitionLang = (lang: WidgetLanguage): string => {
+    if (lang && lang !== "auto" && SUPPORTED_SPEECH_LANGUAGES[lang]?.tag) {
+      return SUPPORTED_SPEECH_LANGUAGES[lang].tag;
+    }
+    return (typeof navigator !== "undefined" && navigator.language) || "en-IN";
+  };
+
+  const stopAudioTracks = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+  };
+
   const startListening = async () => {
     setErrorMsg(null);
+    setLiveText("");
     audioChunksRef.current = [];
+    hasCapturedSpeechRef.current = false;
+    lastSpokenTextRef.current = "";
+
+    onListeningStart?.();
 
     try {
       if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
         throw new Error("This browser does not support microphone recording.");
       }
+
       const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = audioStream;
+
+      // Start MediaRecorder in parallel for neural Whisper fallback
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
         ? "audio/webm;codecs=opus"
         : MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
       const recorder = mimeType
         ? new MediaRecorder(audioStream, { mimeType })
         : new MediaRecorder(audioStream);
+
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
+
       mediaRecorderRef.current = recorder;
       recorder.start(250);
+
+      // Start Web Speech API for instant, live real-time speech streaming
+      const SpeechRecognitionClass = getSpeechRecognitionClass();
+      if (SpeechRecognitionClass) {
+        try {
+          const recognition = new SpeechRecognitionClass();
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.lang = getRecognitionLang(language);
+
+          recognition.onresult = (event: any) => {
+            let interim = "";
+            let final = "";
+            for (let i = 0; i < event.results.length; ++i) {
+              const res = event.results[i];
+              if (res && res[0]) {
+                if (res.isFinal) {
+                  final += res[0].transcript;
+                } else {
+                  interim += res[0].transcript;
+                }
+              }
+            }
+            const fullText = (final + (interim ? (final ? " " : "") + interim : "")).trim();
+            if (fullText) {
+              hasCapturedSpeechRef.current = true;
+              lastSpokenTextRef.current = fullText;
+              setLiveText(fullText);
+              onLiveTranscript?.(fullText);
+            }
+          };
+
+          recognition.onerror = (event: any) => {
+            if (event.error !== "no-speech") {
+              console.warn("SpeechRecognition notice:", event.error);
+            }
+          };
+
+          recognition.onend = () => {
+            // If still marked as listening and no final text yet, attempt seamless restart
+            if (isListeningRef.current && !hasCapturedSpeechRef.current) {
+              try {
+                recognition.start();
+              } catch {
+                // Ignore if already running or browser blocked restart
+              }
+            }
+          };
+
+          recognition.start();
+          speechRecognitionRef.current = recognition;
+        } catch (err) {
+          console.warn("Web Speech API initialization fallback to Whisper:", err);
+        }
+      }
+
+      isListeningRef.current = true;
       setIsListening(true);
     } catch (error) {
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
+      stopAudioTracks();
       setErrorMsg(error instanceof Error ? error.message : "Microphone permission denied or unavailable.");
     }
   };
 
   const stopListening = () => {
+    isListeningRef.current = false;
     setIsListening(false);
+
+    // Stop Web Speech recognition cleanly
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+      } catch {
+        // Safe ignore
+      }
+      speechRecognitionRef.current = null;
+    }
+
+    // 1. If real-time recognition already captured speech, commit it immediately
+    if (hasCapturedSpeechRef.current && lastSpokenTextRef.current.trim()) {
+      onTranscript(lastSpokenTextRef.current.trim());
+      stopAudioTracks();
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {
+          // Safe ignore
+        }
+      }
+      mediaRecorderRef.current = null;
+      audioChunksRef.current = [];
+      return;
+    }
+
+    // 2. Otherwise fallback to local neural Whisper transcription
     const recorder = mediaRecorderRef.current;
     if (!recorder || recorder.state === "inactive") {
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
+      stopAudioTracks();
       return;
     }
 
     recorder.onstop = async () => {
       const audioBlob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
       audioChunksRef.current = [];
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
+      stopAudioTracks();
       mediaRecorderRef.current = null;
 
       if (audioBlob.size <= 2000) {
@@ -96,15 +237,28 @@ export function VoiceInputControl({ onTranscript, language, disabled }: VoiceInp
         setIsProcessingWhisper(false);
       }
     };
+
     recorder.stop();
   };
 
   useEffect(() => {
     return () => {
-      if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
+      isListeningRef.current = false;
+      if (speechRecognitionRef.current) {
+        try {
+          speechRecognitionRef.current.abort();
+        } catch {
+          // Safe ignore
+        }
       }
+      if (mediaRecorderRef.current?.state === "recording") {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {
+          // Safe ignore
+        }
+      }
+      stopAudioTracks();
     };
   }, []);
 
@@ -155,10 +309,12 @@ export function VoiceInputControl({ onTranscript, language, disabled }: VoiceInp
             <span className="wave-bar" />
           </div>
           <div className="ai-voice-info-col">
-            <span className="ai-voice-status-text">
-              {`Listening in ${getLanguageLabel()}... Speak now`}
+            <span className={`ai-voice-status-text ${liveText ? "live-streaming" : ""}`}>
+              {liveText ? `“${liveText}”` : `Listening in ${getLanguageLabel()}... Speak now`}
             </span>
-            <span className="ai-voice-badge">Recorded locally · Transcribed by Whisper</span>
+            <span className="ai-voice-badge">
+              {liveText ? "● Live recognition · Instant typing" : "Recorded locally · Whisper Neural AI"}
+            </span>
           </div>
           <button
             type="button"

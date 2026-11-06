@@ -49,8 +49,22 @@ export function ChatComposer({
     }
   };
 
+  const baseDraftRef = useRef("");
+
+  const handleVoiceListeningStart = () => {
+    baseDraftRef.current = draft;
+  };
+
+  const handleVoiceLiveTranscript = (liveText: string) => {
+    const base = baseDraftRef.current.trim();
+    setDraft(base ? `${base} ${liveText}` : liveText);
+  };
+
   const handleVoiceTranscript = (transcript: string) => {
-    setDraft((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    const base = baseDraftRef.current.trim();
+    const finalResult = base ? `${base} ${transcript}` : transcript;
+    setDraft(finalResult.trim());
+    baseDraftRef.current = finalResult.trim();
     if (textareaRef.current) {
       textareaRef.current.focus();
     }
@@ -76,6 +90,8 @@ export function ChatComposer({
           {/* Voice Input */}
           <VoiceInputControl
             onTranscript={handleVoiceTranscript}
+            onLiveTranscript={handleVoiceLiveTranscript}
+            onListeningStart={handleVoiceListeningStart}
             language={selectedLanguage}
             disabled={isSending}
           />
