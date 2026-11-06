@@ -149,7 +149,8 @@ export const dashboardService = {
 
     const acceptedQuotes = quotations.filter((q) => q.status === "accepted");
     const quoteWinRate = quotations.length > 0 ? Math.round((acceptedQuotes.length / quotations.length) * 100) : 0;
-    const collectionRate = totalInvoiced > 0 ? Math.round((paidRevenue / totalInvoiced) * 100) : 100;
+    // No invoice balance means there is no collection rate to report.
+    const collectionRate = totalInvoiced > 0 ? Math.round((paidRevenue / totalInvoiced) * 100) : 0;
 
     return {
       totalClients: clients.length,

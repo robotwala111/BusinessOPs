@@ -99,6 +99,11 @@ export function ClientForm({
   );
   const [errorMessage, setErrorMessage] = useState("");
   const [autofillBanner, setAutofillBanner] = useState(false);
+  const [emailVerification, setEmailVerification] = useState<"idle" | "sent" | "verified">("idle");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [verificationMessage, setVerificationMessage] = useState("");
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [isVerifyingCode, setIsVerifyingCode] = useState(false);
   const stateOptions = getStateOptions(formData.country);
   const cityOptions = getCityOptions(formData.country);
 
@@ -110,6 +115,55 @@ export function ClientForm({
       ...currentData,
       [key]: value
     }));
+  }
+
+  async function sendEmailVerificationCode() {
+    const email = formData.email.trim().toLowerCase();
+    if (!isValidEmail(email) || !email) {
+      setErrorMessage("Enter a valid email address before requesting a code.");
+      return;
+    }
+    setIsSendingCode(true);
+    setErrorMessage("");
+    setVerificationMessage("");
+    try {
+      const response = await fetch("/api/clients/email-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "send", email })
+      });
+      const payload = await response.json() as { error?: string; message?: string };
+      if (!response.ok) throw new Error(payload.error || "Unable to send the verification code.");
+      setEmailVerification("sent");
+      setVerificationCode("");
+      setVerificationMessage(payload.message || "Verification code sent. Check your inbox.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to send the verification code.");
+    } finally {
+      setIsSendingCode(false);
+    }
+  }
+
+  async function verifyEmailCode() {
+    const email = formData.email.trim().toLowerCase();
+    setIsVerifyingCode(true);
+    setErrorMessage("");
+    setVerificationMessage("");
+    try {
+      const response = await fetch("/api/clients/email-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "verify", email, code: verificationCode })
+      });
+      const payload = await response.json() as { error?: string; message?: string };
+      if (!response.ok) throw new Error(payload.error || "Unable to verify this email address.");
+      setEmailVerification("verified");
+      setVerificationMessage(payload.message || "Email verified.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to verify this email address.");
+    } finally {
+      setIsVerifyingCode(false);
+    }
   }
 
   useEffect(() => {
@@ -197,8 +251,13 @@ export function ClientForm({
       return;
     }
 
-    if (!isValidEmail(formData.email.trim())) {
+    if ((!client && !formData.email.trim()) || !isValidEmail(formData.email.trim())) {
       setErrorMessage("Enter a valid email address.");
+      return;
+    }
+
+    if (!client && emailVerification !== "verified") {
+      setErrorMessage("Verify this email address before creating the client.");
       return;
     }
 
@@ -279,14 +338,55 @@ export function ClientForm({
               }
             />
           </label>
-          <label>
-            Email
+          <div className="client-email-verification">
+            <label htmlFor="client-email">Email{client ? "" : " *"}</label>
             <Input
+              id="client-email"
               type="email"
               value={formData.email}
-              onChange={(event) => updateField("email", event.target.value)}
+              required={!client}
+              onChange={(event) => {
+                updateField("email", event.target.value);
+                if (!client) {
+                  setEmailVerification("idle");
+                  setVerificationCode("");
+                  setVerificationMessage("");
+                }
+              }}
             />
-          </label>
+            {!client ? (
+              <>
+                <div className="client-email-verification-actions">
+                  <Button type="button" variant="secondary" disabled={isSendingCode || !formData.email.trim()} onClick={() => void sendEmailVerificationCode()}>
+                    {isSendingCode ? "Sending code…" : emailVerification === "sent" ? "Send a new code" : "Verify email"}
+                  </Button>
+                  {emailVerification === "verified" ? <span className="email-verified-indicator" role="status">✓ Email verified</span> : null}
+                </div>
+                {emailVerification === "sent" ? (
+                  <div className="client-email-code-entry">
+                    <label htmlFor="client-email-code">6-digit verification code</label>
+                    <div className="client-email-verification-actions">
+                      <Input
+                        id="client-email-code"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="one-time-code"
+                        pattern="[0-9]{6}"
+                        maxLength={6}
+                        value={verificationCode}
+                        onChange={(event) => setVerificationCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                        aria-label="6-digit email verification code"
+                      />
+                      <Button type="button" disabled={isVerifyingCode || verificationCode.length !== 6} onClick={() => void verifyEmailCode()}>
+                        {isVerifyingCode ? "Checking…" : "Confirm code"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+                {verificationMessage ? <p className={emailVerification === "verified" ? "form-note" : "muted"} role="status">{verificationMessage}</p> : null}
+              </>
+            ) : null}
+          </div>
           <label>
             Phone
             <Input
@@ -405,8 +505,8 @@ export function ClientForm({
           >
             <span>✨</span> AI Auto-Fill Form
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving..." : submitLabel}
+          <Button type="submit" disabled={isSubmitting || (!client && emailVerification !== "verified")}>
+            {isSubmitting ? "Saving..." : !client && emailVerification !== "verified" ? "Verify email to continue" : submitLabel}
           </Button>
         </div>
       </form>

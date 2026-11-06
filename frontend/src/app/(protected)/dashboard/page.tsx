@@ -296,7 +296,7 @@ export default function DashboardPage() {
     if (!metrics) return null;
 
     const totalInvoiced = metrics.paidRevenue + metrics.outstandingAmount;
-    const collectionRate = totalInvoiced > 0 ? pct(metrics.paidRevenue, totalInvoiced) : 100;
+    const collectionRate = totalInvoiced > 0 ? pct(metrics.paidRevenue, totalInvoiced) : null;
     const clientEngagement = metrics.totalClients > 0
       ? pct(metrics.activeClients, metrics.totalClients)
       : 0;
@@ -360,6 +360,7 @@ export default function DashboardPage() {
       <div className="exec-kpi-strip">
         <KpiPill
           title="Client Engagement"
+          href="/clients"
           value={`${kpis.clientEngagement}%`}
           change={kpis.clientEngagement > 50 ? "+active" : "low"}
           positive={kpis.clientEngagement > 50}
@@ -374,11 +375,13 @@ export default function DashboardPage() {
           color="#f59e0b"
         />
         <KpiPill
-          title="Revenue Rate"
+          title="Collection Rate"
+          href="/reports/finance"
           subtitle="Realized revenue vs billed receivables"
-          value={`${kpis.collectionRate}%`}
-          change={kpis.collectionRate >= 80 ? "Healthy" : "Needs Attention"}
-          positive={kpis.collectionRate >= 80}
+          value={kpis.collectionRate === null ? "—" : `${kpis.collectionRate}%`}
+          change={kpis.collectionRate === null ? "No invoice data" : kpis.collectionRate >= 80 ? "Healthy" : "Needs Attention"}
+          positive={kpis.collectionRate !== null && kpis.collectionRate >= 80}
+          neutral={kpis.collectionRate === null}
           icon={
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
@@ -388,6 +391,7 @@ export default function DashboardPage() {
         />
         <KpiPill
           title="Quote Win Rate"
+          href="/quotations"
           value={`${metrics.quoteWinRate}%`}
           change={metrics.quoteWinRate > 30 ? "Converting" : "Pipeline"}
           positive={metrics.quoteWinRate > 30}
@@ -401,7 +405,8 @@ export default function DashboardPage() {
           color="#3b82f6"
         />
         <KpiPill
-          title="Team Productivity"
+          title="Active Projects"
+          href="/projects"
           value={`${metrics.activeProjects}`}
           change={`${metrics.activeProjects > 0 ? "Active" : "Idle"} Projects`}
           positive={metrics.activeProjects > 0}
@@ -618,24 +623,28 @@ export default function DashboardPage() {
 /* ── KPI Pill Component ── */
 
 function KpiPill({
+  href,
   title,
   subtitle,
   value,
   change,
   positive,
+  neutral = false,
   icon,
   color,
 }: {
+  href: string;
   title: string;
   subtitle?: string;
   value: string;
   change: string;
   positive: boolean;
+  neutral?: boolean;
   icon: React.ReactNode;
   color: string;
 }) {
   return (
-    <div className="exec-kpi-pill" title={subtitle || title}>
+    <Link className="exec-kpi-pill" href={href} title={subtitle || title} style={{ color: "inherit", textDecoration: "none" }}>
       <div className="exec-kpi-top">
         <span className="exec-kpi-title">{title}</span>
         <div className="exec-kpi-icon" style={{ backgroundColor: `${color}18`, color }}>
@@ -643,10 +652,10 @@ function KpiPill({
         </div>
       </div>
       <div className="exec-kpi-value">{value}</div>
-      <div className={`exec-kpi-change ${positive ? "positive" : "negative"}`}>
-        {positive ? "↑" : "↓"} {change}
+      <div className={`exec-kpi-change ${neutral ? "" : positive ? "positive" : "negative"}`}>
+        {!neutral && (positive ? "↑" : "↓")} {change}
       </div>
-    </div>
+    </Link>
   );
 }
 

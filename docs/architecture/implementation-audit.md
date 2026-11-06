@@ -155,3 +155,28 @@ maintenance/ticket detail workflows, notification UI, reporting and end-to-end t
   milestone-invoice protection, quotation conversion links, contract commercial
   fields, closure metadata and an atomic quotation-to-contract function.
 - Verification: 14 unit tests pass; type checking, lint and production build pass.
+
+## Review follow-up — 2026-11-06
+
+This follow-up preserves the earlier audit and implementation history while recording
+the current review against the enterprise portal brief:
+
+- The existing module names and route structure remain in place. CRM, business
+  operations, finance, administration and the portal have dedicated pages; shared
+  layout and form/table components are present.
+- The dashboard’s collection rate previously reported 100% when there were no
+  invoices. It now shows “— / No invoice data”, and dashboard KPIs link to their
+  relevant modules. “Team Productivity” was relabeled “Active Projects” because the
+  underlying value is a project count.
+- `/portal` is currently an employee-authenticated client workspace preview. It
+  loads the full client directory and supports switching between accounts. It does
+  not yet provide client credentials or server-enforced organization isolation, so it
+  must not be treated as an externally accessible client portal until those controls
+  are implemented.
+- Dashboard date-range filters and dedicated upcoming follow-up/recent activity
+  panels are not present. The older implementation checkpoints describe workflow
+  foundations, but do not establish that every page has been visually or end-to-end
+  tested in a browser.
+- Production readiness still depends on deployment configuration, database RLS and
+  role-policy review, SMTP/provider configuration, and real multi-user acceptance
+  checks. Local demo mode is not a shared production data store.

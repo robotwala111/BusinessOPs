@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import { CLIENT_STATUSES, type Client } from "@/types/client";
+import { CLIENT_EMAIL_VERIFICATION_COOKIE, isSameEmail, readEmailVerificationState } from "@/lib/clientEmailVerification";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,15 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: "A valid email address is required for a new client." }, { status: 400 });
+    }
+    const emailVerification = readEmailVerificationState(request.cookies.get(CLIENT_EMAIL_VERIFICATION_COOKIE)?.value);
+    if (!emailVerification?.verified || emailVerification.expiresAt < Date.now() || !isSameEmail(emailVerification.email, email)) {
+      return NextResponse.json({ error: "Verify this client email address before creating the client." }, { status: 403 });
+    }
+    body.email = email;
     const columns = ["company_name", "client_short_name", "contact_person", "email", "phone", "gst_number", "pan_number", "address", "city", "state", "country", "industry", "lead_source", "status", "notes", "account_owner", "payment_terms", "created_by"];
     if (typeof body.company_name !== "string" || !body.company_name.trim()) {
       return NextResponse.json({ error: "Company name is required." }, { status: 400 });
@@ -54,7 +64,15 @@ export async function POST(request: NextRequest) {
       );
       createdClient = rows[0] as Client;
     }
-    return NextResponse.json(createdClient, { status: 201 });
+    const result = NextResponse.json(createdClient, { status: 201 });
+    result.cookies.set(CLIENT_EMAIL_VERIFICATION_COOKIE, "", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/api/clients",
+      maxAge: 0
+    });
+    return result;
   } catch (error) {
     const databaseError = error as { code?: string; constraint?: string };
     if (databaseError.code === "23503" && databaseError.constraint === "clients_created_by_fkey") {
