@@ -374,7 +374,8 @@ export default function DashboardPage() {
           color="#f59e0b"
         />
         <KpiPill
-          title="Collection Rate"
+          title="Revenue Rate"
+          subtitle="Realized revenue vs billed receivables"
           value={`${kpis.collectionRate}%`}
           change={kpis.collectionRate >= 80 ? "Healthy" : "Needs Attention"}
           positive={kpis.collectionRate >= 80}
@@ -618,6 +619,7 @@ export default function DashboardPage() {
 
 function KpiPill({
   title,
+  subtitle,
   value,
   change,
   positive,
@@ -625,6 +627,7 @@ function KpiPill({
   color,
 }: {
   title: string;
+  subtitle?: string;
   value: string;
   change: string;
   positive: boolean;
@@ -632,7 +635,7 @@ function KpiPill({
   color: string;
 }) {
   return (
-    <div className="exec-kpi-pill">
+    <div className="exec-kpi-pill" title={subtitle || title}>
       <div className="exec-kpi-top">
         <span className="exec-kpi-title">{title}</span>
         <div className="exec-kpi-icon" style={{ backgroundColor: `${color}18`, color }}>

@@ -10,7 +10,7 @@ export function OperationalPulseGauges({ collectionRate, quoteWinRate, activeSla
   return (
     <div className="operational-gauges-grid">
       <RadialGaugeCard
-        title="Collection Efficiency"
+        title="Revenue Rate"
         value={collectionRate}
         unit="%"
         subtitle="Realized income vs billed receivables"

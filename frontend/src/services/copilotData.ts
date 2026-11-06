@@ -407,7 +407,7 @@ async function runQuery(client: SupabaseClient, intent: CopilotIntent): Promise<
             count: data.count,
             amount: Math.round(data.amount * 100) / 100
           })),
-          summary: `Collection rate: ${Math.round(collectionRate)}% (₹${Math.round(totalCollected).toLocaleString('en-IN')} of ₹${Math.round(totalInvoiced).toLocaleString('en-IN')})`
+          summary: `Revenue rate: ${Math.round(collectionRate)}% (₹${Math.round(totalCollected).toLocaleString('en-IN')} of ₹${Math.round(totalInvoiced).toLocaleString('en-IN')})`
         },
         records: []
       };
